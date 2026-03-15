@@ -6,6 +6,11 @@ import { useEffect, useState } from "react"
 const LEFT_LABELS = ["Ticker", "Catalyst", "Spawn"]
 const RIGHT_LABELS = ["Influence", "Cluster", "Probabilities"]
 
+const PILL_WIDTH = 120
+const PILL_HEIGHT = 26
+const LEFT_PILL_X = 60
+const RIGHT_PILL_X = 620
+
 function PillLabel({
   label,
   x,
@@ -26,22 +31,22 @@ function PillLabel({
       <rect
         x={x}
         y={y}
-        width={80}
-        height={26}
+        width={PILL_WIDTH}
+        height={PILL_HEIGHT}
         rx={13}
         fill="none"
         stroke="hsl(var(--foreground))"
         strokeWidth={1.5}
       />
       <text
-        x={x + 40}
+        x={x + PILL_WIDTH / 2}
         y={y + 17}
         textAnchor="middle"
         fill="hsl(var(--foreground))"
-        fontSize={10}
+        fontSize={9.5}
         fontFamily="var(--font-mono), monospace"
         fontWeight={500}
-        letterSpacing="0.05em"
+        letterSpacing="0.03em"
       >
         {label}
       </text>
@@ -73,14 +78,14 @@ export function WorkflowDiagram() {
       >
         {/* Left lines from center to left labels */}
         {LEFT_LABELS.map((_, i) => {
-          const pillX = 60
+          const pillX = LEFT_PILL_X
           const pillY = 30 + i * 60
           return (
             <motion.line
               key={`left-line-${i}`}
               x1={centerX - 40}
               y1={centerY}
-              x2={pillX + 80}
+              x2={pillX + PILL_WIDTH}
               y2={pillY + 13}
               stroke="hsl(var(--border))"
               strokeWidth={1}
@@ -93,7 +98,7 @@ export function WorkflowDiagram() {
 
         {/* Right lines from center to right labels */}
         {RIGHT_LABELS.map((_, i) => {
-          const pillX = 660
+          const pillX = RIGHT_PILL_X
           const pillY = 30 + i * 60
           return (
             <motion.line
@@ -113,16 +118,16 @@ export function WorkflowDiagram() {
 
         {/* Data packets flowing along lines */}
         {LEFT_LABELS.map((_, i) => {
-          const pillX = 60
+          const pillX = LEFT_PILL_X
           const pillY = 30 + i * 60
           return (
             <motion.circle
               key={`left-packet-${i}`}
               r={3}
               fill="#ea580c"
-              initial={{ cx: pillX + 80, cy: pillY + 13 }}
+              initial={{ cx: pillX + PILL_WIDTH, cy: pillY + 13 }}
               animate={{
-                cx: [pillX + 80, centerX - 40],
+                cx: [pillX + PILL_WIDTH, centerX - 40],
                 cy: [pillY + 13, centerY],
               }}
               transition={{
@@ -137,7 +142,7 @@ export function WorkflowDiagram() {
         })}
 
         {RIGHT_LABELS.map((_, i) => {
-          const pillX = 660
+          const pillX = RIGHT_PILL_X
           const pillY = 30 + i * 60
           return (
             <motion.circle
@@ -165,7 +170,7 @@ export function WorkflowDiagram() {
           <PillLabel
             key={`left-${label}`}
             label={label}
-            x={60}
+            x={LEFT_PILL_X}
             y={30 + i * 60}
             delay={0.1 + i * 0.1}
           />
@@ -176,7 +181,7 @@ export function WorkflowDiagram() {
           <PillLabel
             key={`right-${label}`}
             label={label}
-            x={660}
+            x={RIGHT_PILL_X}
             y={30 + i * 60}
             delay={0.1 + i * 0.1}
           />
