@@ -11,10 +11,6 @@ const PARTNERS = [
   "NEXT.JS",
   "YFINANCE",
   "REDDIT API",
-  "RSS FEEDS",
-  "SEC EDGAR",
-  "RENDER",
-  "CLOUDFLARE",
 ]
 
 function LogoBlock({ name, glitch }: { name: string; glitch: boolean }) {

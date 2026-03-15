@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react"
 import { motion, useInView } from "framer-motion"
-import Image from "next/image"
+import { TopologyGraph } from "@/components/topology-graph"
 
 const ease = [0.22, 1, 0.36, 1] as const
 
@@ -143,22 +143,19 @@ export function AboutSection() {
             </span>
           </div>
 
-          <Image
-            src="/images/about-isometric.jpg"
-            alt="Isometric view of AI infrastructure with server racks and data pipelines"
-            fill
-            className="object-cover"
-            sizes="(max-width: 1024px) 100vw, 50vw"
-            priority
-          />
+          <div className="absolute inset-0 bg-background p-4 lg:p-6">
+            <div className="h-full">
+              <TopologyGraph />
+            </div>
+          </div>
 
           {/* Bottom image coordinates */}
           <div className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-2 bg-foreground/80 backdrop-blur-sm">
             <span className="text-[10px] tracking-[0.2em] uppercase text-background/40 font-mono">
-              {"CAM: -45deg / ISO"}
+              {"VIEW: LIVE TOPOLOGY"}
             </span>
             <span className="text-[10px] tracking-[0.2em] uppercase text-background/40 font-mono">
-              {"RES: 2048x2048"}
+              {"MODE: CROWD FLOW"}
             </span>
           </div>
         </motion.div>
@@ -207,7 +204,7 @@ export function AboutSection() {
                   Crowd Signal is an AI-powered crowd simulation engine for stock market sentiment prediction. You provide a ticker and catalyst like earnings, headlines, or CEO tweets. It simulates how different trader archetypes react over the next 1 to 4 hours.
                 </p>
                 <p className="text-xs lg:text-sm font-mono text-muted-foreground leading-relaxed">
-                  Inspired by MiroFish and adapted for intraday market psychology, the engine models retail bulls, retail bears, whales, and algos. Each agent holds a stance in [-1, +1], influences neighbors each tick, and responds to persistent catalyst gravity.
+                  Inspired by MiroFish - a multi-agent crowd simulation engine. We applied the same idea to intraday stock market psychology.
                 </p>
                 <p className="text-xs lg:text-sm font-mono text-muted-foreground leading-relaxed">
                   This system does not tell you to buy or sell. It maps where the crowd is likely to cluster, because crowd behavior is what often moves prices intraday.
@@ -227,7 +224,7 @@ export function AboutSection() {
                 <span className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground font-mono">
                   STATUS:
                 </span>
-                <span className="font-mono text-[#ea580c]">MVP IN ACTIVE DEVELOPMENT</span>
+                <span className="font-mono text-[#ea580c]">MVP - ACTIVELY BUILDING</span>
               </motion.div>
             </div>
 

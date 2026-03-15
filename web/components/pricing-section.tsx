@@ -77,11 +77,11 @@ interface Principle {
 const PRINCIPLES: Principle[] = [
   {
     id: "assistive",
-    name: "ASSISTIVE",
+    name: "ASSISTIVE, NOT AUTOMATED",
     rank: "01",
     period: " / PRINCIPLE",
     tag: null,
-    description: "Assistive, not automated: suggestions only with no trade execution.",
+    description: "Assistive, not automated.",
     features: [
       { text: "Ticker + catalyst input", included: true },
       { text: "Crowd reaction map", included: true },
@@ -95,11 +95,11 @@ const PRINCIPLES: Principle[] = [
   },
   {
     id: "probabilistic",
-    name: "PROBABILISTIC",
+    name: "PROBABILISTIC, NOT CERTAIN",
     rank: "02",
     period: " / PRINCIPLE",
     tag: "CORE",
-    description: "Probabilistic, not certain: outputs are distributions with confidence.",
+    description: "Probabilistic, not certain.",
     features: [
       { text: "Agent stances in [-1.0, +1.0]", included: true },
       { text: "Per-persona confidence scores", included: true },
@@ -113,11 +113,11 @@ const PRINCIPLES: Principle[] = [
   },
   {
     id: "explainable",
-    name: "EXPLAINABLE",
+    name: "EXPLAINABLE BY DESIGN",
     rank: "03",
     period: " / PRINCIPLE",
     tag: null,
-    description: "Explainable and honest: clear reasoning and transparent limits.",
+    description: "Explainable by design.",
     features: [
       { text: "Archetype-level output breakdown", included: true },
       { text: "Catalyst and crowd influence visible", included: true },
@@ -276,7 +276,7 @@ export function PricingSection() {
             Principles, stack, and status
           </h2>
           <p className="text-xs lg:text-sm font-mono text-muted-foreground leading-relaxed max-w-xl">
-            Simulation engine: Python + LangGraph. Backend: FastAPI. Frontend: Next.js. Data: yfinance, Reddit API, RSS news feeds, SEC EDGAR. Infra: Render + Cloudflare Pages.
+            Stack: Python, LangGraph, FastAPI, Next.js, yfinance, Reddit API. Status: MVP - actively building.
           </p>
         </div>
         <StatusLine />

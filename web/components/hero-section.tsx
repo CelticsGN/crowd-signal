@@ -46,9 +46,13 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.45, ease }}
-          className="text-xs lg:text-sm text-muted-foreground max-w-2xl mb-6 leading-relaxed font-mono"
+          className="text-xs lg:text-sm text-muted-foreground max-w-3xl mb-6 leading-relaxed font-mono"
         >
-          What if you could simulate how the market crowd will react before it happens? Crowd Signal is an AI-powered crowd simulation engine for stock market sentiment prediction. Give it a ticker and a catalyst, then inspect how retail, whales, and algos are likely to move over the next 1 to 4 hours.
+          <span className="block">See how the market crowd will react before it happens.</span>
+          <span className="block mt-2">
+            Crowd Signal simulates how different trader archetypes - retail bulls, bears, whales, and algos - react to a market catalyst.
+          </span>
+          <span className="block mt-2">The output is a probability map, not a prediction.</span>
         </motion.p>
 
         {/* CTA Button */}

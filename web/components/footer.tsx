@@ -19,21 +19,48 @@ export function Footer() {
             CROWD.SIGNAL
           </span>
           <span className="text-[10px] font-mono tracking-widest text-muted-foreground">
-            {"(C) 2026 CROWD SIGNAL PROJECT"}
+            {"(C) 2026 CROWD SIGNAL PROJECT - MVP - ACTIVELY BUILDING"}
+          </span>
+          <span className="text-[10px] font-mono tracking-widest text-muted-foreground">
+            {"Built by "}
+            <a
+              href="https://www.linkedin.com/in/nihaallp/"
+              target="_blank"
+              rel="noreferrer"
+              className="underline hover:text-foreground"
+            >
+              Nihal Pardeshi
+            </a>
+            {" and "}
+            <a
+              href="https://www.linkedin.com/in/gaurav-guddeti-a2359827b/"
+              target="_blank"
+              rel="noreferrer"
+              className="underline hover:text-foreground"
+            >
+              Gaurav Guddeti
+            </a>
           </span>
         </div>
         <div className="flex items-center gap-6">
-          {["Active Dev", "MVP Live", "$0 Budget", "Student Built"].map((link, i) => (
+          {[
+            { label: "Privacy", href: "#" },
+            { label: "Terms", href: "#" },
+            { label: "Status", href: "#" },
+            { label: "GitHub", href: "https://github.com/NihaallX/crowd-signal" },
+          ].map((link, i) => (
             <motion.a
-              key={link}
-              href="#"
+              key={link.label}
+              href={link.href}
+              target={link.href.startsWith("http") ? "_blank" : undefined}
+              rel={link.href.startsWith("http") ? "noreferrer" : undefined}
               initial={{ opacity: 0, y: 6 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.1 + i * 0.06, duration: 0.4, ease }}
               className="text-[10px] font-mono tracking-widest uppercase text-muted-foreground hover:text-foreground transition-colors duration-200"
             >
-              {link}
+              {link.label}
             </motion.a>
           ))}
         </div>

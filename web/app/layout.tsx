@@ -11,9 +11,9 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Brutalist AI SaaS Landing Page Template | Engineering-Grade Dark UI Kit',
+  title: 'Crowd Signal | Market Crowd Simulation',
   description:
-    'A brutalist, engineering-themed landing page template for AI infrastructure and SaaS products. Features Geist Pixel typography, dot-grid backgrounds, live terminal animations, scramble-text micro-interactions, bento feature grids, isometric 3D illustrations, and a fully responsive dark industrial design system. Built with Next.js 16, Tailwind CSS, and Framer Motion.',
+    'See how the market crowd will react before it happens. Crowd Signal simulates how retail bulls, bears, whales, and algos respond to a market catalyst and returns a probability map, not a prediction.',
   keywords: [
     'brutalist landing page template',
     'AI SaaS template',
@@ -34,9 +34,9 @@ export const metadata: Metadata = {
     'startup landing page',
     'tech landing page template',
   ],
-  authors: [{ name: 'SYS.INT' }],
-  creator: 'System Intelligence Corp.',
-  publisher: 'System Intelligence Corp.',
+  authors: [{ name: 'Crowd Signal Team' }],
+  creator: 'Crowd Signal Team',
+  publisher: 'Crowd Signal Team',
   robots: {
     index: true,
     follow: true,
@@ -51,17 +51,17 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    title: 'Brutalist AI SaaS Landing Page Template | Engineering-Grade Dark UI Kit',
+    title: 'Crowd Signal | Market Crowd Simulation',
     description:
-      'A brutalist, engineering-themed landing page template for AI and SaaS products. Geist Pixel typography, terminal animations, bento grids, scramble-text effects, and a full industrial design system. Next.js 16 + Tailwind CSS + Framer Motion.',
-    siteName: 'SYS.INT Template',
+      'Crowd Signal simulates how trader archetypes react to a catalyst over the next 1 to 4 hours and returns a probability map for intraday crowd behavior.',
+    siteName: 'Crowd Signal',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Brutalist AI SaaS Landing Page Template',
+    title: 'Crowd Signal | Market Crowd Simulation',
     description:
-      'Engineering-grade brutalist template for AI SaaS products. Dot-grid backgrounds, live terminal animations, Geist Pixel typography, bento feature grids, and scramble-text micro-interactions. Built with Next.js 16.',
-    creator: '@sysint',
+      'See how the market crowd will react before it happens. Probabilistic simulation for intraday stock sentiment.',
+    creator: '@crowdsignal',
   },
   category: 'technology',
 }

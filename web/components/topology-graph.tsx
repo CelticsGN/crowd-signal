@@ -59,12 +59,12 @@ export function TopologyGraph() {
   }, [])
 
   if (!mounted) {
-    return <div className="h-[360px] w-full border-2 border-foreground" />
+    return <div className="h-full min-h-[320px] w-full border-2 border-foreground" />
   }
 
   return (
-    <div className="relative w-full border-2 border-foreground bg-background">
-      <svg viewBox="0 0 760 360" className="w-full h-auto" role="img" aria-label="AI system topology graph showing data flow from Input through Preprocess and Validate to Model and Output">
+    <div className="relative w-full h-full border-2 border-foreground bg-background">
+      <svg viewBox="0 0 760 360" className="w-full h-full" preserveAspectRatio="xMidYMid meet" role="img" aria-label="AI system topology graph showing data flow from Input through Preprocess and Validate to Model and Output">
         {/* Grid lines for blueprint feel */}
         {Array.from({ length: 32 }).map((_, i) => (
           <line
