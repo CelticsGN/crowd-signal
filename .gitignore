@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment variables — ignore secrets, keep examples
+.env
+.env.local
+.env.*.local
+# Never ignore example/template env files
+!.env.example
+!.env.local.example
+!.env.*.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (for web/)
+node_modules/
+.next/
+out/
+
+# Local template scratch folder (do not push)
+hF6RVqDBTgZ-1773588583973/

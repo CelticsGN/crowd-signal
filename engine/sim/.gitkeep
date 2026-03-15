@@ -1,0 +1,7 @@
+# engine/sim/ — Simulation runner (reserved for human implementation)
+#
+# This directory is intentionally empty at bootstrap time.
+# The simulation runner will orchestrate:
+#   - LangGraph state machines per agent persona
+#   - Stepwise catalyst injection and market feedback loops
+#   - Aggregation of AgentState snapshots into SimulationResult
