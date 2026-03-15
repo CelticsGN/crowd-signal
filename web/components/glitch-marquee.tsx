@@ -35,8 +35,7 @@ export function GlitchMarquee() {
       {/* Section label */}
       <motion.div
         initial={{ opacity: 0, x: -20 }}
-        whileInView={{ opacity: 1, x: 0 }}
-        viewport={{ once: true, margin: "-80px" }}
+        animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.5, ease }}
         className="flex items-center gap-4 mb-8"
       >
@@ -50,8 +49,7 @@ export function GlitchMarquee() {
       {/* Marquee */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-40px" }}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease }}
         className="overflow-hidden border-2 border-foreground"
       >
