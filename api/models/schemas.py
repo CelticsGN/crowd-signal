@@ -93,6 +93,15 @@ class CatalystAnalysis(BaseModel):
     reasoning: list[CatalystReasoningEntry]
 
 
+class MemoryEntry(BaseModel):
+    """Summary of a recent simulation memory row for a ticker."""
+
+    catalyst: str
+    probability_up: float
+    direction: str
+    created_at: str
+
+
 class SimulationResult(BaseModel):
     """Response payload from POST /api/v1/simulate.
 
@@ -118,6 +127,7 @@ class SimulationResult(BaseModel):
     probability_down: float
     personas: list[PersonaSentiment]
     catalyst_analysis: Optional[CatalystAnalysis] = None
+    memory_context: Optional[list[MemoryEntry]] = None
 
     # Live market context fields — all Optional for graceful degradation
     current_price: Optional[float] = None

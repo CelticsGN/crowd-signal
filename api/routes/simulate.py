@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from api.models.schemas import PersonaSentiment, SimulateRequest, SimulationResult
+from engine.memory.db import get_recent_runs
 from engine.data.aggregator import MarketDataAggregator
 from engine.sim.runner import run_simulation
 
@@ -45,6 +46,19 @@ async def simulate(request: SimulateRequest) -> SimulationResult:
         horizon_minutes=request.horizon_minutes,
         market_context=market_context,
     )
+
+    memory_context_rows = get_recent_runs(ticker=ticker, limit=4)
+    # Exclude the just-saved current run from response history summary.
+    memory_context_rows = memory_context_rows[1:4] if memory_context_rows else []
+    memory_context = [
+        {
+            "catalyst": str(row.get("catalyst", "")),
+            "probability_up": float(row.get("probability_up", 0.0)),
+            "direction": str(row.get("direction", "neutral")),
+            "created_at": str(row.get("created_at", "")),
+        }
+        for row in memory_context_rows
+    ]
 
     # --- Build response ------------------------------------------------
     total_agents = int(sim_result.get("agent_count", 0))
@@ -98,6 +112,7 @@ async def simulate(request: SimulateRequest) -> SimulationResult:
         probability_down=probability_down,
         personas=personas,
         catalyst_analysis=sim_result.get("catalyst_analysis"),
+        memory_context=memory_context,
         # Market context fields (None when context fetch failed)
         current_price=market_context.current_price if market_context else None,
         volume_vs_avg=market_context.volume_vs_avg if market_context else None,

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypedDict
 from engine.agents.persona import AgentState, PersonaType
+from engine.memory.context import compute_memory_bias
+from engine.memory.db import save_simulation_run
 import logging
 import random
 import re
@@ -228,6 +230,22 @@ def run_simulation(
                 "detail": "Live market context adjusted catalyst bias after extraction and graph synthesis.",
             }
         )
+
+    memory_input_bias = catalyst_bias
+    catalyst_bias, memory_reasons = compute_memory_bias(ticker, catalyst_bias)
+    memory_delta = catalyst_bias - memory_input_bias
+    if abs(memory_delta) > 1e-9:
+        catalyst_analysis["final_bias"] = catalyst_bias
+        catalyst_analysis["market_adjustment"] += memory_delta
+    for reason in memory_reasons:
+        catalyst_analysis["reasoning"].append(
+            {
+                "rule": "memory_context_adjustment",
+                "effect": "contextual_shift",
+                "weight": memory_delta,
+                "detail": reason,
+            }
+        )
     # ------------------------------------------------------------------
 
     spawned_agents = spawn_agents(catalyst_bias=catalyst_bias)
@@ -280,6 +298,7 @@ def run_simulation(
             buckets["neutral"] += 1
 
     mean_stance = sum(agent["stance"] for agent in agents) / total if total else 0.0
+    probability_up = (up_count / total) if total else 0.0
     probability_down = (down_count / total) if total else 0.0
 
     logger.warning(
@@ -299,6 +318,26 @@ def run_simulation(
         key: (persona_confidence_totals[key] / persona_counts[key] if persona_counts[key] else 0.0)
         for key in persona_counts
     }
+
+    extraction = catalyst_analysis.get("extraction", {})
+    rules_fired = [
+        str(entry.get("rule", ""))
+        for entry in catalyst_analysis.get("reasoning", [])
+        if str(entry.get("rule", ""))
+    ]
+    save_simulation_run(
+        ticker=ticker,
+        catalyst=catalyst,
+        catalyst_bias=catalyst_bias,
+        event_type=str(extraction.get("event_type", "")),
+        direction=str(extraction.get("direction", "")),
+        magnitude=str(extraction.get("magnitude", "")),
+        aggregate_stance=mean_stance,
+        probability_up=probability_up,
+        probability_down=probability_down,
+        final_bias=float(catalyst_analysis.get("final_bias", catalyst_bias)),
+        rules_fired=rules_fired,
+    )
 
     return {
         "ticker": state["ticker"],
