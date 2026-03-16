@@ -6,6 +6,9 @@ import type { CatalystAnalysis } from "@/hooks/useSimulation"
 
 type Props = {
   analysis: CatalystAnalysis
+  height?: number
+  mode?: "compact" | "analysis"
+  showCounts?: boolean
 }
 
 type GraphNode = {
@@ -190,14 +193,7 @@ function normalizeGraph(analysis: CatalystAnalysis): { nodes: GraphNode[]; edges
   return { nodes, edges }
 }
 
-function ruleIcon(rule: string, adjustment: number): string {
-  if (rule.includes("macro") || rule.includes("fed") || rule.includes("market")) return "⚡"
-  if (adjustment > 0) return "📈"
-  if (adjustment < 0) return "📉"
-  return "⚡"
-}
-
-export function CatalystGraph({ analysis }: Props) {
+export function CatalystGraph({ analysis, height = 320, mode = "compact", showCounts = true }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const svgRef = useRef<SVGSVGElement | null>(null)
   const [width, setWidth] = useState(800)
@@ -221,7 +217,6 @@ export function CatalystGraph({ analysis }: Props) {
     const svgEl = svgRef.current
     if (!svgEl) return
 
-    const height = 320
     const svg = d3.select(svgEl)
     svg.selectAll("*").remove()
 
@@ -281,13 +276,20 @@ export function CatalystGraph({ analysis }: Props) {
       } else {
         const arcIndex = Math.max(0, relatedIndex)
         const angle = (-Math.PI / 3) + (arcIndex * (Math.PI / 8))
-        n.x = width * 0.76 + Math.cos(angle) * 52
-        n.y = height * 0.46 + Math.sin(angle) * 52
+        const arcRadius = mode === "analysis" ? 88 : 52
+        n.x = width * 0.76 + Math.cos(angle) * arcRadius
+        n.y = height * 0.46 + Math.sin(angle) * arcRadius
       }
     }
 
     const linkNodeId = (value: string | GraphNode | (GraphNode & d3.SimulationNodeDatum)) =>
       typeof value === "string" ? value : value.id
+
+    const eventRelatedDistance = mode === "analysis" ? 160 : 120
+    const otherDistance = mode === "analysis" ? 110 : 80
+    const relatedCharge = mode === "analysis" ? -520 : -400
+    const otherCharge = mode === "analysis" ? -420 : -300
+    const collisionRadius = mode === "analysis" ? 34 : 25
 
     const simulation = d3
       .forceSimulation(graphNodes)
@@ -301,16 +303,16 @@ export function CatalystGraph({ analysis }: Props) {
             const targetId = linkNodeId(link.target as any)
             const sourceKind = graphNodes.find((node) => node.id === sourceId)?.kind
             const targetKind = graphNodes.find((node) => node.id === targetId)?.kind
-            if (sourceKind === "event" && targetKind === "related") return 120
-            return 80
+            if (sourceKind === "event" && targetKind === "related") return eventRelatedDistance
+            return otherDistance
           })
           .strength(0.45),
       )
-      .force("charge", d3.forceManyBody<GraphNode & d3.SimulationNodeDatum>().strength((d) => (d.kind === "related" ? -400 : -300)))
+          .force("charge", d3.forceManyBody<GraphNode & d3.SimulationNodeDatum>().strength((d) => (d.kind === "related" ? relatedCharge : otherCharge)))
       .force("center", d3.forceCenter(width / 2, height / 2))
       .force("x", d3.forceX(width / 2).strength(0.05))
       .force("y", d3.forceY(height / 2).strength(0.05))
-      .force("collision", d3.forceCollide().radius(25))
+          .force("collision", d3.forceCollide().radius(collisionRadius))
 
     const isConnected = (edge: GraphEdge, nodeId: string | null) => {
       if (!nodeId) return true
@@ -376,7 +378,10 @@ export function CatalystGraph({ analysis }: Props) {
 
     node
       .append("circle")
-      .attr("r", (d) => (d.kind === "related" ? 10 : 14))
+      .attr("r", (d) => {
+        if (mode === "analysis") return d.kind === "related" ? 12 : 16
+        return d.kind === "related" ? 10 : 14
+      })
       .attr("fill", (d) => nodeColor(d.kind, analysis.final_bias))
       .attr("stroke", "#ffffff")
       .attr("stroke-width", 1)
@@ -384,8 +389,8 @@ export function CatalystGraph({ analysis }: Props) {
     node
       .append("text")
       .attr("text-anchor", "middle")
-      .attr("dy", 30)
-      .attr("font-size", 9)
+      .attr("dy", mode === "analysis" ? 34 : 30)
+      .attr("font-size", mode === "analysis" ? 12 : 9)
       .attr("fill", "#a0a0a0")
       .attr("font-family", "var(--font-mono), monospace")
       .text((d) => (d.kind === "related" ? d.id.replace(/_/g, " ").toUpperCase() : d.label))
@@ -403,7 +408,7 @@ export function CatalystGraph({ analysis }: Props) {
     return () => {
       simulation.stop()
     }
-  }, [analysis.final_bias, edges, nodes, selectedNode, width])
+  }, [analysis.final_bias, edges, height, mode, nodes, selectedNode, width])
 
   const biasTone = analysis.final_bias > 0.1 ? "text-green-400" : analysis.final_bias < -0.1 ? "text-red-400" : "text-zinc-400"
   const graphCounts = `${nodes.length} nodes  •  ${edges.length} edges`
@@ -412,11 +417,15 @@ export function CatalystGraph({ analysis }: Props) {
     <section className="border border-foreground/20 bg-background/60 p-4 lg:p-5">
       <div className="flex flex-col items-center justify-center mb-4">
         <p className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground">FINAL_BIAS</p>
-        <p className={`text-3xl font-bold font-mono ${biasTone}`}>{analysis.final_bias.toFixed(3)}</p>
+        <p className={`${mode === "analysis" ? "text-5xl" : "text-3xl"} font-bold font-mono ${biasTone}`}>{analysis.final_bias.toFixed(3)}</p>
         <p className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground">{analysis.market_scope}</p>
       </div>
 
-      <div ref={containerRef} className="relative w-full h-[320px] border border-foreground/20 bg-foreground/5 dark:bg-black/20 overflow-hidden">
+      <div
+        ref={containerRef}
+        className="relative w-full border border-foreground/20 bg-foreground/5 dark:bg-black/20 overflow-hidden"
+        style={{ height }}
+      >
         {nodes.length < 2 ? (
           <div className="h-full w-full flex items-center justify-center text-xs font-mono tracking-[0.16em] uppercase text-muted-foreground">
             // GRAPH_UNAVAILABLE - insufficient entity data
@@ -425,9 +434,11 @@ export function CatalystGraph({ analysis }: Props) {
           <svg ref={svgRef} className="w-full h-full" role="img" aria-label="Catalyst knowledge graph visualization" />
         )}
 
-        <div className="absolute right-2 top-2 text-[10px] font-mono tracking-[0.12em] uppercase text-muted-foreground bg-background/70 px-2 py-1 border border-foreground/20">
-          {graphCounts}
-        </div>
+        {showCounts ? (
+          <div className="absolute right-2 top-2 text-[10px] font-mono tracking-[0.12em] uppercase text-muted-foreground bg-background/70 px-2 py-1 border border-foreground/20">
+            {graphCounts}
+          </div>
+        ) : null}
 
         {tooltip ? (
           <div
@@ -437,27 +448,6 @@ export function CatalystGraph({ analysis }: Props) {
             {tooltip.text}
           </div>
         ) : null}
-      </div>
-
-      <div className="mt-4 overflow-x-auto">
-        <div className="flex gap-3 min-w-max pr-2">
-          {(analysis.reasoning ?? []).map((entry, index) => {
-            const adjustment = entry.adjustment ?? entry.weight ?? 0
-            const description = entry.description ?? entry.detail ?? ""
-            const toneClass = adjustment > 0
-              ? "border-green-600/40 text-green-700 dark:text-green-300"
-              : adjustment < 0
-                ? "border-red-600/40 text-red-700 dark:text-red-300"
-                : "border-zinc-500/40 text-zinc-700 dark:text-zinc-300"
-            return (
-              <article key={`${entry.rule}-${index}`} className={`w-[260px] border bg-background/50 p-3 ${toneClass}`}>
-                <p className="text-[10px] uppercase tracking-[0.18em] font-mono">{ruleIcon(entry.rule, adjustment)} {entry.rule}</p>
-                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{description}</p>
-                <p className="mt-2 text-xs font-mono">adjustment: {adjustment >= 0 ? `+${adjustment.toFixed(3)}` : adjustment.toFixed(3)}</p>
-              </article>
-            )
-          })}
-        </div>
       </div>
     </section>
   )

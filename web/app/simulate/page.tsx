@@ -13,7 +13,7 @@ export default function SimulatePage() {
   const [catalyst, setCatalyst] = useState("Earnings beat by 20%")
   const [horizonMinutes, setHorizonMinutes] = useState(120)
 
-  const { data, loading, error, runSimulation } = useSimulation()
+  const { data, loading, error, analysisRunId, runSimulation } = useSimulation()
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -59,7 +59,7 @@ export default function SimulatePage() {
             </div>
           ) : null}
 
-          {data ? <SimulationResults data={data} /> : null}
+          {data ? <SimulationResults data={data} analysisRunId={analysisRunId} /> : null}
         </div>
       </main>
       <Footer />

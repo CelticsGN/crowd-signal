@@ -1,19 +1,20 @@
 "use client"
 
 import { motion } from "framer-motion"
+import Link from "next/link"
 import type { SimulateResponse } from "@/hooks/useSimulation"
 import { SimulationPersonaChart } from "@/components/simulation-persona-chart"
-import { CatalystGraph } from "@/components/catalyst-graph"
 
 type Props = {
   data: SimulateResponse
+  analysisRunId?: string | null
 }
 
 function toPercent(value: number): string {
   return `${(value * 100).toFixed(1)}%`
 }
 
-export function SimulationResults({ data }: Props) {
+export function SimulationResults({ data, analysisRunId }: Props) {
   return (
     <motion.section
       initial={{ opacity: 0, y: 18 }}
@@ -31,16 +32,6 @@ export function SimulationResults({ data }: Props) {
         <Metric label="Probability Up" value={toPercent(data.probability_up)} />
         <Metric label="Probability Down" value={toPercent(data.probability_down)} />
       </div>
-
-      {data.catalyst_analysis ? (
-        <div className="mb-5">
-          <div className="flex items-center gap-4 mb-3">
-            <span className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground">{"// CATALYST_INTELLIGENCE"}</span>
-            <div className="flex-1 border-t border-border" />
-          </div>
-          <CatalystGraph analysis={data.catalyst_analysis} />
-        </div>
-      ) : null}
 
       <SimulationPersonaChart personas={data.personas} />
 
@@ -66,6 +57,17 @@ export function SimulationResults({ data }: Props) {
           </tbody>
         </table>
       </div>
+
+      {analysisRunId ? (
+        <div className="mt-5">
+          <Link
+            href={`/analysis/${analysisRunId}`}
+            className="inline-flex border border-foreground/30 px-4 py-2 text-xs font-mono uppercase tracking-[0.16em] text-foreground hover:bg-foreground/10 transition-colors"
+          >
+            // VIEW_FULL_ANALYSIS →
+          </Link>
+        </div>
+      ) : null}
 
       <p className="mt-4 text-xs text-muted-foreground uppercase tracking-wider">
         This is not financial advice. Probabilistic simulation only.
