@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, TypedDict
 from engine.agents.persona import AgentState, PersonaType
 from engine.memory.context import compute_memory_bias
 from engine.memory.db import save_simulation_run
+from engine.sim.narrator import generate_crowd_narrative
 import logging
 import random
 import re
@@ -339,6 +340,26 @@ def run_simulation(
         rules_fired=rules_fired,
     )
 
+    crowd_narrative: list[dict] = []
+    try:
+        crowd_narrative = generate_crowd_narrative(
+            ticker=ticker,
+            catalyst=catalyst,
+            simulation_result={
+                "mean_stance": mean_stance,
+                "probability_up": probability_up,
+                "probability_down": probability_down,
+                "persona_mean_stance": persona_mean_stance,
+                "up_count": up_count,
+                "down_count": down_count,
+                "agent_count": total,
+            },
+            catalyst_analysis=catalyst_analysis,
+        )
+    except Exception:
+        logger.exception("crowd_narrative_generation_failed ticker=%s", ticker)
+        crowd_narrative = []
+
     return {
         "ticker": state["ticker"],
         "catalyst": state["catalyst"],
@@ -353,6 +374,7 @@ def run_simulation(
         "persona_counts": persona_counts,
         "persona_mean_stance": persona_mean_stance,
         "persona_mean_confidence": persona_mean_confidence,
+        "crowd_narrative": crowd_narrative,
     }
 
 

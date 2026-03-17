@@ -6,6 +6,8 @@ import { useEffect, useMemo, useState } from "react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { CatalystGraph } from "@/components/catalyst-graph"
+import { CrowdNarrative } from "@/components/crowd-narrative"
+import { AccuracyBadge } from "@/components/accuracy-badge"
 import type { SimulateResponse, StoredSimulationRun } from "@/hooks/useSimulation"
 
 function toPercent(value: number): string {
@@ -99,6 +101,9 @@ export default function AnalysisPage() {
               <p className="mt-3 text-xs uppercase tracking-[0.16em] text-muted-foreground">
                 {new Date(storedRun?.createdAt ?? "").toLocaleString()}
               </p>
+              <div className="mt-4 max-w-sm">
+                <AccuracyBadge compact />
+              </div>
             </section>
 
             <section className="w-full border border-foreground/20 bg-background/80 p-5">
@@ -144,6 +149,16 @@ export default function AnalysisPage() {
                   <div className="flex-1 border-t border-border" />
                 </div>
                 <CatalystGraph analysis={result.catalyst_analysis} mode="analysis" height={500} showCounts />
+              </section>
+            ) : null}
+
+            {(result.crowd_narrative ?? []).length > 0 ? (
+              <section className="w-full border border-foreground/20 bg-background/80 p-5">
+                <div className="flex items-center gap-4 mb-4">
+                  <span className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground">// CROWD_NARRATIVE</span>
+                  <div className="flex-1 border-t border-border" />
+                </div>
+                <CrowdNarrative crowdNarrative={result.crowd_narrative ?? []} />
               </section>
             ) : null}
 

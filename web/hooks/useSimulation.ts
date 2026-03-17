@@ -61,6 +61,13 @@ export type CatalystAnalysis = {
   market_scope: string
 }
 
+export type NarrativeEntry = {
+  agent_id: string
+  persona: string
+  message: string
+  stance: number
+}
+
 export type SimulateResponse = {
   ticker: string
   catalyst: string
@@ -75,6 +82,7 @@ export type SimulateResponse = {
     direction: string
     created_at: string
   }> | null
+  crowd_narrative?: NarrativeEntry[] | null
 }
 
 export type StoredSimulationRun = {

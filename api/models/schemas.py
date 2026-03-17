@@ -102,6 +102,15 @@ class MemoryEntry(BaseModel):
     created_at: str
 
 
+class NarrativeEntry(BaseModel):
+    """Single vocal-agent narrative message from the simulation."""
+
+    agent_id: str
+    persona: str
+    message: str
+    stance: float
+
+
 class SimulationResult(BaseModel):
     """Response payload from POST /api/v1/simulate.
 
@@ -128,9 +137,26 @@ class SimulationResult(BaseModel):
     personas: list[PersonaSentiment]
     catalyst_analysis: Optional[CatalystAnalysis] = None
     memory_context: Optional[list[MemoryEntry]] = None
+    crowd_narrative: Optional[list[NarrativeEntry]] = None
 
     # Live market context fields — all Optional for graceful degradation
     current_price: Optional[float] = None
     volume_vs_avg: Optional[float] = None
     reddit_mentions: Optional[int] = None
     reddit_sentiment: Optional[float] = None
+
+
+class TickerAccuracyEntry(BaseModel):
+    """Directional prediction accuracy summary."""
+
+    total: int
+    correct: int
+    accuracy_pct: float
+
+
+class AccuracyStats(BaseModel):
+    """Global and per-ticker directional accuracy payload."""
+
+    global_accuracy: TickerAccuracyEntry
+    by_ticker: dict[str, TickerAccuracyEntry]
+    last_updated: str

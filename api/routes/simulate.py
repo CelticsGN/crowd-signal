@@ -113,6 +113,7 @@ async def simulate(request: SimulateRequest) -> SimulationResult:
         personas=personas,
         catalyst_analysis=sim_result.get("catalyst_analysis"),
         memory_context=memory_context,
+        crowd_narrative=sim_result.get("crowd_narrative", []),
         # Market context fields (None when context fetch failed)
         current_price=market_context.current_price if market_context else None,
         volume_vs_avg=market_context.volume_vs_avg if market_context else None,
