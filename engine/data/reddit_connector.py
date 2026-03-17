@@ -9,10 +9,24 @@ import praw
 from dotenv import load_dotenv
 
 from .base_connector import BaseConnector
+from .market_utils import is_indian_stock
 
 load_dotenv()
 
-_DEFAULT_SUBREDDITS: list[str] = ["wallstreetbets", "stocks"]
+INDIAN_SUBREDDITS: list[str] = [
+    "IndiaInvestments",
+    "IndianStreetBets",
+    "NSEIndia",
+    "DalalStreetTalks",
+]
+
+US_SUBREDDITS: list[str] = [
+    "wallstreetbets",
+    "stocks",
+    "investing",
+]
+
+_DEFAULT_SUBREDDITS: list[str] = US_SUBREDDITS
 _FETCH_LIMIT: int = 50  # posts per subreddit
 _LOOKBACK_HOURS: float = 2.0
 
@@ -68,6 +82,11 @@ class RedditConnector(BaseConnector):
         """Return ``True`` when *text* references *ticker* (case-insensitive)."""
         return ticker.upper() in text.upper()
 
+    def get_subreddits(self, ticker: str) -> list[str]:
+        if is_indian_stock(ticker):
+            return INDIAN_SUBREDDITS
+        return US_SUBREDDITS
+
     # ------------------------------------------------------------------
     # BaseConnector implementation
     # ------------------------------------------------------------------
@@ -89,7 +108,8 @@ class RedditConnector(BaseConnector):
         """
         results: list[dict] = []
 
-        for sub_name in self.subreddits:
+        target_subreddits = self.get_subreddits(ticker)
+        for sub_name in target_subreddits:
             try:
                 subreddit = self._reddit.subreddit(sub_name)
                 for post in subreddit.hot(limit=_FETCH_LIMIT):

@@ -4,17 +4,16 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+from api.ticker_catalog import TICKERS
+
 router = APIRouter()
 
-_SUPPORTED_TICKERS: list[str] = ["NVDA", "TSLA", "META", "AAPL", "AMD"]
 
-
-@router.get("/tickers", response_model=list[str])
-async def get_tickers() -> list[str]:
+@router.get("/tickers", response_model=dict[str, list[dict[str, str]]])
+async def get_tickers() -> dict[str, list[dict[str, str]]]:
     """Return the list of tickers supported by the simulation engine.
 
     Returns:
-        A list of uppercase ticker symbols that have been pre-validated
-        for use with all three data connectors.
+        Grouped ticker metadata by market region.
     """
-    return _SUPPORTED_TICKERS
+    return TICKERS

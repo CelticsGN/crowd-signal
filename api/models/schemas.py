@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from api.ticker_catalog import ALLOWED_TICKERS
 
 
 class SimulateRequest(BaseModel):
@@ -18,7 +20,7 @@ class SimulateRequest(BaseModel):
                           Accepted range: 60–240 (1–4 hours).
     """
 
-    ticker: str = Field(..., min_length=1, max_length=10, examples=["NVDA"])
+    ticker: str = Field(..., min_length=1, max_length=20, examples=["NVDA", "RELIANCE.NS"])
     catalyst: str = Field(..., min_length=1, examples=["Earnings beat by 20%"])
     horizon_minutes: int = Field(
         default=60,
@@ -26,6 +28,14 @@ class SimulateRequest(BaseModel):
         le=240,
         description="Simulation horizon in minutes (60–240).",
     )
+
+    @field_validator("ticker")
+    @classmethod
+    def validate_supported_ticker(cls, value: str) -> str:
+        normalized = value.strip().upper()
+        if normalized not in ALLOWED_TICKERS:
+            raise ValueError("Ticker is not in supported US/IN catalog")
+        return normalized
 
 
 class PersonaSentiment(BaseModel):

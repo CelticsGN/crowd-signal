@@ -10,11 +10,18 @@ import re
 import feedparser
 
 from .base_connector import BaseConnector
+from .market_utils import is_indian_stock
 
 # RSS feed URLs for financial news
-_RSS_FEEDS: list[str] = [
+US_RSS_FEEDS: list[str] = [
     "https://feeds.reuters.com/reuters/businessNews",
     "https://feeds.marketwatch.com/marketwatch/topstories/",
+]
+
+INDIAN_RSS_FEEDS: list[str] = [
+    "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms",
+    "https://www.moneycontrol.com/rss/MCtopnews.xml",
+    "https://www.business-standard.com/rss/markets-106.rss",
 ]
 
 
@@ -79,8 +86,13 @@ class NewsConnector(BaseConnector):
         Args:
             feeds: Override the default RSS feed URLs if provided.
         """
-        self.feeds: list[str] = feeds or _RSS_FEEDS
+        self.feeds: list[str] = feeds or US_RSS_FEEDS
         self.last_events: list[NewsEvent] = []
+
+    def get_feeds(self, ticker: str) -> list[str]:
+        if is_indian_stock(ticker):
+            return INDIAN_RSS_FEEDS
+        return self.feeds
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -137,7 +149,7 @@ class NewsConnector(BaseConnector):
             ``published``, ``url``, ``source``, ``ticker_mentions``.
         """
         self.last_events = []
-        for feed_url in self.feeds:
+        for feed_url in self.get_feeds(ticker):
             try:
                 self.last_events.extend(self._parse_feed(feed_url, ticker))
             except Exception:

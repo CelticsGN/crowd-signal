@@ -10,12 +10,22 @@ from pydantic import BaseModel
 from engine.data.yfinance_connector import YFinanceConnector
 from engine.data.news_connector import NewsConnector
 from engine.data.reddit_connector import RedditConnector
+from engine.data.market_utils import is_indian_stock as _is_indian_stock
+from engine.data.market_utils import get_market_hours as _get_market_hours
 
 # --- Sentiment word lists for Reddit posts ----------------------------
 _POSITIVE_WORDS = {"bull", "moon", "calls", "buy", "pump", "bullish", "long",
                    "mooning", "rally", "surge", "squeeze", "yolo", "rip"}
 _NEGATIVE_WORDS = {"bear", "puts", "sell", "crash", "dump", "bearish", "short",
                    "rug", "plunge", "correction", "tank", "baghold", "rekt"}
+
+
+def is_indian_stock(ticker: str) -> bool:
+    return _is_indian_stock(ticker)
+
+
+def get_market_hours(ticker: str) -> dict[str, str]:
+    return _get_market_hours(ticker)
 
 
 def _reddit_sentiment_score(posts: list[dict]) -> float:

@@ -22,6 +22,10 @@ function toPct(value: number): string {
   return `${value.toFixed(1)}%`
 }
 
+function currencyTagForTicker(ticker: string): string {
+  return ticker.endsWith(".NS") || ticker.endsWith(".BO") ? "₹ INR" : "$ USD"
+}
+
 export function AccuracyBadge({ compact = false }: AccuracyBadgeProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -120,7 +124,7 @@ export function AccuracyBadge({ compact = false }: AccuracyBadgeProps) {
               {topTickers.map(([ticker, entry]) => (
                 <div key={ticker} className="flex items-center justify-between text-xs font-mono uppercase tracking-[0.16em]">
                   <span className="text-foreground">{ticker}</span>
-                  <span className="text-muted-foreground">{Math.round(entry.accuracy_pct)}% ({entry.total} runs)</span>
+                  <span className="text-muted-foreground">{Math.round(entry.accuracy_pct)}% ({entry.total} runs) {currencyTagForTicker(ticker)}</span>
                 </div>
               ))}
             </div>

@@ -14,7 +14,27 @@ type Props = {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
 }
 
-const TICKERS = ["NVDA", "TSLA", "META", "AAPL", "AMD"] as const
+const TICKERS = {
+  US: [
+    { symbol: "NVDA", name: "NVIDIA" },
+    { symbol: "TSLA", name: "Tesla" },
+    { symbol: "META", name: "Meta" },
+    { symbol: "AAPL", name: "Apple" },
+    { symbol: "AMD", name: "AMD" },
+  ],
+  IN: [
+    { symbol: "RELIANCE.NS", name: "Reliance Industries" },
+    { symbol: "TCS.NS", name: "Tata Consultancy Services" },
+    { symbol: "INFY.NS", name: "Infosys" },
+    { symbol: "HDFCBANK.NS", name: "HDFC Bank" },
+    { symbol: "TATASTEEL.NS", name: "Tata Steel" },
+    { symbol: "WIPRO.NS", name: "Wipro" },
+    { symbol: "BAJFINANCE.NS", name: "Bajaj Finance" },
+    { symbol: "ICICIBANK.NS", name: "ICICI Bank" },
+    { symbol: "SUNPHARMA.NS", name: "Sun Pharma" },
+    { symbol: "TATAMOTORS.NS", name: "Tata Motors" },
+  ],
+} as const
 const HORIZONS = [60, 120, 240] as const
 
 export function SimulationForm({
@@ -48,11 +68,20 @@ export function SimulationForm({
             onChange={(e) => onTickerChange(e.target.value)}
             className="border border-foreground/25 bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-foreground"
           >
-            {TICKERS.map((symbol) => (
-              <option key={symbol} value={symbol}>
-                {symbol}
-              </option>
-            ))}
+            <optgroup label="🇺🇸 US Stocks">
+              {TICKERS.US.map((item) => (
+                <option key={item.symbol} value={item.symbol}>
+                  {item.symbol} — {item.name}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="🇮🇳 Indian Stocks (NSE)">
+              {TICKERS.IN.map((item) => (
+                <option key={item.symbol} value={item.symbol}>
+                  {item.symbol} — {item.name}
+                </option>
+              ))}
+            </optgroup>
           </select>
         </label>
 

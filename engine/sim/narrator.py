@@ -46,6 +46,50 @@ VOCAL_AGENTS = [
     },
 ]
 
+INDIAN_VOCAL_AGENTS = [
+    {
+        "id": "indian_retail_047",
+        "persona": "retail_bull",
+        "personality": "Young Indian retail investor using Zerodha or Groww. Excited about the market. Refers to SIP investments. FOMO-driven. Uses Indian market context. Mentions Nifty/Sensex. Optimistic about India growth story.",
+    },
+    {
+        "id": "indian_retail_bear",
+        "persona": "retail_bear",
+        "personality": "Cautious Indian retail investor. Worried about FII outflows and rupee depreciation. References past crashes. Mentions RBI policy. Suspicious of operator activity in mid/small caps. Risk-averse, often in fixed deposits.",
+    },
+    {
+        "id": "fii_trader",
+        "persona": "whale",
+        "personality": "Foreign institutional investor managing an emerging markets fund. Thinks in USD. Watches USD/INR exchange rate closely. Compares India to China, Brazil, other EMs. Moves large positions slowly. Sensitive to Fed policy and global risk. Currently owns 17% of BSE-500.",
+    },
+    {
+        "id": "dii_buyer",
+        "persona": "institutional",
+        "personality": "Domestic institutional investor - mutual fund or LIC manager. Systematic buyer, buys dips always. Long term oriented, 5-10 year horizon. SIP inflows give steady ammunition. Counterbalances FII selling. Calm, methodical, never panics.",
+    },
+    {
+        "id": "hni_speculator",
+        "persona": "algo",
+        "personality": "High Net Worth Individual trader. Heavy in derivatives - F&O positions. Watches options OI and PCR ratio. Takes concentrated bets on single stocks. Active in IPO subscriptions. Bridges retail and institutional behavior. Short to medium term focus.",
+    },
+    {
+        "id": "narrator",
+        "persona": "narrator",
+        "personality": "Objective Indian market analyst. Summarizes FII vs DII dynamics. References Nifty50 context. Mentions RBI and SEBI where relevant. Ends with disclaimer.",
+    },
+]
+
+
+def _is_indian_ticker(ticker: str) -> bool:
+    symbol = (ticker or "").upper()
+    return symbol.endswith(".NS") or symbol.endswith(".BO")
+
+
+def _stance_key_for_persona(persona: str) -> str:
+    if persona == "institutional":
+        return "whale"
+    return persona
+
 
 def _get_client() -> OpenAI | None:
     api_key = os.getenv("GROQ_API_KEY", "").strip()
@@ -76,7 +120,11 @@ def _stance_label(stance: float) -> str:
 def _build_user_prompt(
     ticker: str,
     catalyst: str,
+    agent_id: str,
     persona: str,
+    market_context: str,
+    currency: str,
+    exchange_note: str,
     simulation_result: dict[str, Any],
     catalyst_analysis: dict[str, Any],
 ) -> str:
@@ -97,11 +145,21 @@ def _build_user_prompt(
         if str(entry.get("rule", ""))
     ]
 
-    agent_stance = float(simulation_result.get("mean_stance", 0.0)) if persona == "narrator" else float(persona_stances.get(persona, 0.0))
+    stance_persona_key = _stance_key_for_persona(persona)
+    agent_stance = float(simulation_result.get("mean_stance", 0.0)) if persona == "narrator" else float(persona_stances.get(stance_persona_key, 0.0))
+
+    role_notes = ""
+    if agent_id == "fii_trader":
+        role_notes = "You must explicitly reference USD/INR and foreign flow positioning.\n"
+    elif agent_id == "dii_buyer":
+        role_notes = "You must explicitly mention SIP inflows or steady domestic fund buying.\n"
 
     return (
         f"Ticker: {ticker}\n"
         f"Catalyst: {catalyst}\n"
+        f"Market context: {market_context}\n"
+        f"Currency context: {currency}\n"
+        f"Exchange note: {exchange_note}\n"
         "Simulation result:\n"
         f"- Crowd aggregate stance: {_fmt(simulation_result.get('mean_stance', 0.0))}\n"
         f"- Probability up: {_fmt(probability_up)}\n"
@@ -115,6 +173,7 @@ def _build_user_prompt(
         f"This means you are currently feeling: {_stance_label(agent_stance)}.\n"
         "Your message MUST be consistent with this stance.\n"
         "Do not contradict your stance value.\n"
+        f"{role_notes}"
         "What do you say?"
     )
 
@@ -126,6 +185,11 @@ def _extract_message(response: Any) -> str:
     message = getattr(choices[0], "message", None)
     content = getattr(message, "content", "") if message is not None else ""
     return str(content or "").strip()
+
+
+def _ensure_disclaimer(message: str) -> str:
+    cleaned = message.replace(_DISCLAIMER, "").strip()
+    return f"{cleaned} {_DISCLAIMER}".strip()
 
 
 def _is_stance_consistent(message: str, stance: float) -> bool:
@@ -173,7 +237,20 @@ def generate_crowd_narrative(
     prior_reactions: list[str] = []
     persona_stances = simulation_result.get("persona_mean_stance", {}) or {}
 
-    for tick, agent in enumerate(VOCAL_AGENTS):
+    if _is_indian_ticker(ticker):
+        agents_to_use = INDIAN_VOCAL_AGENTS
+        market_context = "NSE India market"
+        currency = "INR (₹)"
+        exchange_note = "Nifty50 listed stock"
+        indian_market = True
+    else:
+        agents_to_use = VOCAL_AGENTS
+        market_context = "US market"
+        currency = "USD ($)"
+        exchange_note = "NASDAQ/NYSE listed stock"
+        indian_market = False
+
+    for tick, agent in enumerate(agents_to_use):
         agent_id = str(agent["id"])
         persona = str(agent["persona"])
         personality = str(agent["personality"])
@@ -198,15 +275,42 @@ def generate_crowd_narrative(
         if persona == "narrator":
             system_prompt = base_system_prompt
             user_prompt = (
-                _build_user_prompt(ticker, catalyst, persona, simulation_result, catalyst_analysis)
+                _build_user_prompt(
+                    ticker,
+                    catalyst,
+                    agent_id,
+                    persona,
+                    market_context,
+                    currency,
+                    exchange_note,
+                    simulation_result,
+                    catalyst_analysis,
+                )
                 + "\n"
                 + f"Previous agent reactions: {' | '.join(prior_reactions) if prior_reactions else 'none'}\n"
-                + "Summarize what the crowd simulation revealed in 2-3 sentences. Be objective. "
-                + "End with the disclaimer: This is probabilistic simulation, not financial advice."
+                + (
+                    "Summarize FII vs DII dynamics if relevant. "
+                    "Mention if this is a broad Nifty-level event or stock-specific. "
+                    "Reference RBI or SEBI policy only if the catalyst is macro-related. "
+                    "Always end with: This is probabilistic simulation, not financial advice."
+                    if indian_market
+                    else "Summarize what the crowd simulation revealed in 2-3 sentences. Be objective. "
+                    "End with the disclaimer: This is probabilistic simulation, not financial advice."
+                )
             )
         else:
             system_prompt = base_system_prompt
-            user_prompt = _build_user_prompt(ticker, catalyst, persona, simulation_result, catalyst_analysis)
+            user_prompt = _build_user_prompt(
+                ticker,
+                catalyst,
+                agent_id,
+                persona,
+                market_context,
+                currency,
+                exchange_note,
+                simulation_result,
+                catalyst_analysis,
+            )
 
         try:
             completion = client.chat.completions.create(
@@ -221,7 +325,8 @@ def generate_crowd_narrative(
             message = _extract_message(completion)
             if not message:
                 continue
-            stance = float(simulation_result.get("mean_stance", 0.0)) if persona == "narrator" else float(persona_stances.get(persona, 0.0))
+            stance_key = _stance_key_for_persona(persona)
+            stance = float(simulation_result.get("mean_stance", 0.0)) if persona == "narrator" else float(persona_stances.get(stance_key, 0.0))
             if persona != "narrator" and not _is_stance_consistent(message, stance):
                 corrected = client.chat.completions.create(
                     model=_MODEL,
@@ -246,13 +351,14 @@ def generate_crowd_narrative(
                 probability_up = float(simulation_result.get("probability_up", 0.0) or 0.0)
                 probability_down = float(simulation_result.get("probability_down", 0.0) or 0.0)
                 message = _fallback_aligned_message(persona, ticker, stance, probability_up, probability_down)
-            if persona == "narrator" and not message.rstrip().endswith(_DISCLAIMER):
-                message = f"{message.rstrip()} {_DISCLAIMER}"
+            if persona == "narrator":
+                message = _ensure_disclaimer(message)
         except Exception as exc:
             logger.warning("narrator_agent_failed agent_id=%s error=%s", agent_id, exc)
             continue
 
-        stance = float(simulation_result.get("mean_stance", 0.0)) if persona == "narrator" else float(persona_stances.get(persona, 0.0))
+        stance_key = _stance_key_for_persona(persona)
+        stance = float(simulation_result.get("mean_stance", 0.0)) if persona == "narrator" else float(persona_stances.get(stance_key, 0.0))
         entry = {
             "agent_id": agent_id,
             "persona": persona,
