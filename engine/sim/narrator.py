@@ -204,24 +204,6 @@ def _is_stance_consistent(message: str, stance: float) -> bool:
     return True
 
 
-def _fallback_aligned_message(persona: str, ticker: str, stance: float, probability_up: float, probability_down: float) -> str:
-    label = _stance_label(stance)
-    if stance > 0.1:
-        return (
-            f"Stance is {stance:.3f} ({label}) on {ticker}, with probability up {probability_up:.3f} "
-            f"versus down {probability_down:.3f}; I remain positioned for upside."
-        )
-    if stance < -0.1:
-        return (
-            f"Stance is {stance:.3f} ({label}) on {ticker}, with probability down {probability_down:.3f} "
-            f"versus up {probability_up:.3f}; I remain positioned defensively for downside risk."
-        )
-    return (
-        f"Stance is {stance:.3f} ({label}) on {ticker}; probabilities are balanced at up {probability_up:.3f} "
-        f"and down {probability_down:.3f}, so I stay neutral."
-    )
-
-
 def generate_crowd_narrative(
     ticker: str,
     catalyst: str,
@@ -348,13 +330,12 @@ def generate_crowd_narrative(
                 if corrected_message:
                     message = corrected_message
             if persona != "narrator" and not _is_stance_consistent(message, stance):
-                probability_up = float(simulation_result.get("probability_up", 0.0) or 0.0)
-                probability_down = float(simulation_result.get("probability_down", 0.0) or 0.0)
-                message = _fallback_aligned_message(persona, ticker, stance, probability_up, probability_down)
+                logger.error("[NARRATOR] %s: Groq call failed - inconsistent stance output", agent_id)
+                continue
             if persona == "narrator":
                 message = _ensure_disclaimer(message)
-        except Exception as exc:
-            logger.warning("narrator_agent_failed agent_id=%s error=%s", agent_id, exc)
+        except Exception as exc:  # noqa: BLE001
+            logger.error("[NARRATOR] %s: Groq call failed - %s", agent_id, str(exc))
             continue
 
         stance_key = _stance_key_for_persona(persona)

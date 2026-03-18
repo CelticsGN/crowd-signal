@@ -167,14 +167,42 @@ export function DailyReport() {
     return `Accuracy this week: ${acc}% (${correct}/${total} correct)`
   }, [report])
 
-  if (failed) return null
+  if (failed) {
+    return (
+      <div className="mt-6 w-full border border-destructive/40 bg-destructive/10 p-4 lg:p-6">
+        <p className="text-xs font-mono uppercase tracking-[0.16em] text-destructive">// REPORT_UNAVAILABLE</p>
+        <p className="mt-2 text-sm text-foreground/90">Could not reach backend.</p>
+        <p className="mt-1 text-xs text-muted-foreground">Check: crowd-signal.onrender.com/health</p>
+      </div>
+    )
+  }
 
   if (loading) {
     return <p className="mt-4 text-xs font-mono uppercase tracking-[0.16em] text-muted-foreground">// GENERATING_DAILY_REPORT...</p>
   }
 
   if (!report || report.status === "generating") {
-    return <p className="mt-4 text-xs font-mono uppercase tracking-[0.16em] text-muted-foreground">{`// REPORT_GENERATING ${DASH} check back before market open`}</p>
+    return (
+      <div className="mt-6 w-full border border-foreground/20 bg-background/70 p-4 lg:p-6 backdrop-blur-sm">
+        <p className="text-xs font-mono uppercase tracking-[0.16em] text-muted-foreground">// REPORT_PENDING</p>
+        <p className="mt-2 text-sm text-foreground/90">Daily scan has not run yet today.</p>
+        <p className="mt-1 text-xs text-muted-foreground">Trigger manually: POST /api/v1/daily-report/trigger</p>
+      </div>
+    )
+  }
+
+  const isEmpty = report.us_entries.length === 0 && report.in_entries.length === 0
+  if (isEmpty) {
+    return (
+      <div className="mt-6 w-full border border-foreground/20 bg-background/70 p-4 lg:p-6 backdrop-blur-sm">
+        <p className="text-xs font-mono uppercase tracking-[0.16em] text-muted-foreground">// REPORT_EMPTY</p>
+        <p className="mt-2 text-sm text-foreground/90">Report generated but no catalysts found today.</p>
+        <p className="mt-2 text-xs text-muted-foreground">Possible causes:</p>
+        <p className="mt-1 text-xs text-muted-foreground">- News feeds returned no headlines</p>
+        <p className="text-xs text-muted-foreground">- All tickers below activity threshold</p>
+        <p className="text-xs text-muted-foreground">- Check backend logs for [SCANNER] and [NEWS] entries</p>
+      </div>
+    )
   }
 
   return (

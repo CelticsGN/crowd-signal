@@ -34,4 +34,12 @@ async def trigger_daily_report(x_admin_key: str | None = Header(default=None)) -
     if not admin_key or (x_admin_key or "") != admin_key:
         raise HTTPException(status_code=403, detail="Unauthorized")
 
-    return await run_daily_scan("ALL")
+    summary = await run_daily_scan("ALL")
+    return {
+        "tickers_scanned": int(summary.get("tickers_scanned", 0)),
+        "catalysts_found": int(summary.get("catalysts_found", 0)),
+        "simulations_run": int(summary.get("simulations_run", 0)),
+        "report_date": str(summary.get("report_date", "")),
+        "errors": list(summary.get("errors", [])),
+        "skipped_tickers": list(summary.get("skipped_tickers", [])),
+    }

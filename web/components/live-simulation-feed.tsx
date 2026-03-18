@@ -18,6 +18,7 @@ function formatEventLabel(type: string): string {
 
 function colorForEvent(type: string): string {
   if (type === "error") return "text-destructive"
+  if (type === "narrator_error") return "text-amber-400"
   if (type === "complete") return "text-emerald-400"
   if (type === "herd_detected") return "text-amber-400"
   if (type === "agent_thought") return "text-cyan-300"
@@ -47,6 +48,10 @@ function stringifyEvent(event: SimulationStreamEvent): string {
     return String(event.message ?? "Narrator summary available")
   }
 
+  if (event.type === "narrator_error") {
+    return "// NARRATOR_UNAVAILABLE - Groq rate limit or timeout"
+  }
+
   if (event.type === "error") {
     return String(event.message ?? "Stream error")
   }
@@ -66,6 +71,11 @@ export function LiveSimulationFeed({ events, currentTick, maxTicks, isConnected,
 
   const herdWarning = useMemo(
     () => events.findLast((entry) => entry.type === "herd_detected") ?? null,
+    [events],
+  )
+
+  const latestError = useMemo(
+    () => events.findLast((entry) => entry.type === "error") ?? null,
     [events],
   )
 
@@ -96,6 +106,14 @@ export function LiveSimulationFeed({ events, currentTick, maxTicks, isConnected,
       {herdWarning ? (
         <div className="mb-4 border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-xs font-mono uppercase tracking-[0.14em] text-amber-300">
           {stringifyEvent(herdWarning)}
+        </div>
+      ) : null}
+
+      {latestError ? (
+        <div className="mb-4 border border-destructive/60 bg-destructive/10 px-3 py-2 text-xs font-mono tracking-[0.08em] text-destructive">
+          <p className="uppercase">// SIMULATION_ERROR</p>
+          <p className="mt-1">{String(latestError.message ?? "Simulation stream failed")}</p>
+          <p className="mt-1 text-muted-foreground">Retrying with standard mode...</p>
         </div>
       ) : null}
 

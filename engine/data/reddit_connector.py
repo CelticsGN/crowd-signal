@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from datetime import datetime, timezone
 
-import praw
+import asyncpraw
 from dotenv import load_dotenv
 
 from .base_connector import BaseConnector
 from .market_utils import is_indian_stock
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 INDIAN_SUBREDDITS: list[str] = [
     "IndiaInvestments",
@@ -58,14 +61,9 @@ class RedditConnector(BaseConnector):
         """
         self.subreddits: list[str] = subreddits or _DEFAULT_SUBREDDITS
         self.lookback_hours: float = lookback_hours
-
-        self._reddit = praw.Reddit(
-            client_id=os.environ.get("REDDIT_CLIENT_ID", ""),
-            client_secret=os.environ.get("REDDIT_CLIENT_SECRET", ""),
-            user_agent=os.environ.get(
-                "REDDIT_USER_AGENT", "crowd-signal/0.1"
-            ),
-        )
+        self._client_id = os.environ.get("REDDIT_CLIENT_ID", "").strip()
+        self._client_secret = os.environ.get("REDDIT_CLIENT_SECRET", "").strip()
+        self._user_agent = os.environ.get("REDDIT_USER_AGENT", "crowd-signal/1.0").strip()
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -91,7 +89,7 @@ class RedditConnector(BaseConnector):
     # BaseConnector implementation
     # ------------------------------------------------------------------
 
-    def fetch(self, ticker: str) -> list[dict]:
+    async def fetch(self, ticker: str) -> list[dict]:
         """Fetch recent Reddit posts that mention *ticker*.
 
         Searches the hot queue of each configured subreddit and returns
@@ -107,35 +105,56 @@ class RedditConnector(BaseConnector):
             ``upvote_ratio``, ``num_comments``, ``url``, ``created_utc``.
         """
         results: list[dict] = []
+        logger.info("[REDDIT] Fetching posts for %s", ticker)
+
+        if not self._client_id or not self._client_secret:
+            logger.warning("[REDDIT] credentials not configured - skipping")
+            return results
 
         target_subreddits = self.get_subreddits(ticker)
-        for sub_name in target_subreddits:
-            try:
-                subreddit = self._reddit.subreddit(sub_name)
-                for post in subreddit.hot(limit=_FETCH_LIMIT):
-                    if not self._is_recent(post.created_utc):
-                        continue
-                    combined = f"{post.title} {post.selftext}"
-                    if not self._post_mentions(combined, ticker):
-                        continue
-                    results.append(
-                        {
-                            "type": "reddit_post",
-                            "ticker": ticker,
-                            "subreddit": sub_name,
-                            "title": post.title,
-                            "selftext": post.selftext[:500],  # truncate for memory
-                            "score": post.score,
-                            "upvote_ratio": post.upvote_ratio,
-                            "num_comments": post.num_comments,
-                            "url": f"https://reddit.com{post.permalink}",
-                            "created_utc": datetime.fromtimestamp(
-                                post.created_utc, tz=timezone.utc
-                            ).isoformat(),
-                        }
-                    )
-            except Exception:
-                # Auth errors or network failures must be non-fatal
-                pass
+        logger.info("[REDDIT] %s: subreddits=%s", ticker, target_subreddits)
+
+        try:
+            async with asyncpraw.Reddit(
+                client_id=self._client_id,
+                client_secret=self._client_secret,
+                user_agent=self._user_agent,
+            ) as reddit:
+                for sub_name in target_subreddits:
+                    try:
+                        subreddit = await reddit.subreddit(sub_name)
+                        async for post in subreddit.hot(limit=_FETCH_LIMIT):
+                            if not self._is_recent(post.created_utc):
+                                continue
+                            combined = f"{post.title} {post.selftext}"
+                            if not self._post_mentions(combined, ticker):
+                                continue
+                            results.append(
+                                {
+                                    "type": "reddit_post",
+                                    "ticker": ticker,
+                                    "subreddit": sub_name,
+                                    "title": post.title,
+                                    "selftext": post.selftext[:500],
+                                    "score": post.score,
+                                    "upvote_ratio": post.upvote_ratio,
+                                    "num_comments": post.num_comments,
+                                    "url": f"https://reddit.com{post.permalink}",
+                                    "created_utc": datetime.fromtimestamp(
+                                        post.created_utc, tz=timezone.utc
+                                    ).isoformat(),
+                                }
+                            )
+                    except Exception as exc:  # noqa: BLE001
+                        text = str(exc).lower()
+                        if "rate" in text and "limit" in text:
+                            logger.error("[REDDIT] rate limited - %s", str(exc))
+                        else:
+                            logger.error("[REDDIT] %s: FAILED - %s", sub_name, str(exc))
+        except Exception as exc:  # noqa: BLE001
+            logger.error("[REDDIT] credentials missing or invalid - %s", str(exc))
+            return []
+
+        logger.info("[REDDIT] %s: posts found: %s", ticker, len(results))
 
         return results

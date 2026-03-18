@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from typing import Any
 
@@ -13,6 +14,7 @@ from engine.memory.db import get_recent_runs
 from engine.sim.streaming_runner import run_simulation_streaming
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 _PERSONAS = ["retail_bull", "retail_bear", "whale", "algo"]
 
@@ -108,8 +110,9 @@ async def ws_simulate(websocket: WebSocket) -> None:
 
     market_context = None
     try:
-        market_context = MarketDataAggregator().fetch_context(request.ticker)
-    except Exception:
+        market_context = await MarketDataAggregator().fetch_context(request.ticker)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("[WS] %s: market context fetch FAILED - %s", request.ticker, str(exc))
         market_context = None
 
     active = True

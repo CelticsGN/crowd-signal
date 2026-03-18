@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter
 
 from api.models.schemas import PersonaSentiment, SimulateRequest, SimulationResult
@@ -10,6 +12,7 @@ from engine.data.aggregator import MarketDataAggregator
 from engine.sim.runner import run_simulation
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 _PERSONAS = ["retail_bull", "retail_bear", "whale", "algo"]
 
@@ -35,9 +38,9 @@ async def simulate(request: SimulateRequest) -> SimulationResult:
     # --- Live market context (graceful degradation on failure) ---------
     market_context = None
     try:
-        market_context = MarketDataAggregator().fetch_context(ticker)
-    except Exception:
-        pass  # simulation will run without context enrichment
+        market_context = await MarketDataAggregator().fetch_context(ticker)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("[SIMULATE] %s: market context fetch FAILED - %s", ticker, str(exc))
 
     # --- Core simulation -----------------------------------------------
     sim_result = run_simulation(

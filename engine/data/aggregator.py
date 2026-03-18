@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import re
 from typing import Optional
 
@@ -12,6 +14,8 @@ from engine.data.news_connector import NewsConnector
 from engine.data.reddit_connector import RedditConnector
 from engine.data.market_utils import is_indian_stock as _is_indian_stock
 from engine.data.market_utils import get_market_hours as _get_market_hours
+
+logger = logging.getLogger(__name__)
 
 # --- Sentiment word lists for Reddit posts ----------------------------
 _POSITIVE_WORDS = {"bull", "moon", "calls", "buy", "pump", "bullish", "long",
@@ -88,11 +92,12 @@ class MarketDataAggregator:
     # Internal fetch helpers (each returns None on failure)
     # ------------------------------------------------------------------
 
-    def _fetch_price_data(self, ticker: str) -> dict:
+    async def _fetch_price_data(self, ticker: str) -> dict:
         """Return price/volume/options fields or empty dict on failure."""
         try:
-            records = self._yf.fetch(ticker)
-        except Exception:
+            records = await asyncio.to_thread(self._yf.fetch, ticker)
+        except Exception as exc:  # noqa: BLE001
+            logger.error("[YFINANCE] %s: FAILED - %s", ticker, str(exc))
             return {}
 
         ohlcv = [r for r in records if r["type"] == "ohlcv"]
@@ -134,30 +139,32 @@ class MarketDataAggregator:
 
         return result
 
-    def _fetch_headlines(self, ticker: str) -> list[str]:
+    async def _fetch_headlines(self, ticker: str) -> list[str]:
         """Return up to 5 recent headlines or empty list on failure."""
         try:
-            records = self._news.fetch(ticker)
+            records = await self._news.fetch(ticker)
             return [r["headline"] for r in records[:5]]
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            logger.error("[NEWS] %s: FAILED - %s", ticker, str(exc))
             return []
 
-    def _fetch_reddit(self, ticker: str) -> dict:
+    async def _fetch_reddit(self, ticker: str) -> dict:
         """Return reddit mention count + sentiment score or empty dict."""
         try:
-            posts = self._reddit.fetch(ticker)
+            posts = await self._reddit.fetch(ticker)
             return {
                 "reddit_mentions": len(posts),
                 "reddit_sentiment": round(_reddit_sentiment_score(posts), 4),
             }
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            logger.error("[REDDIT] %s: FAILED - %s", ticker, str(exc))
             return {}
 
     # ------------------------------------------------------------------
     # Public interface
     # ------------------------------------------------------------------
 
-    def fetch_context(self, ticker: str) -> MarketContext:
+    async def fetch_context(self, ticker: str) -> MarketContext:
         """Aggregate live market data for *ticker* into a :class:`MarketContext`.
 
         Each connector is called independently so partial failures
@@ -171,9 +178,9 @@ class MarketDataAggregator:
             A :class:`MarketContext` with as many fields populated as
             the live data sources allow.
         """
-        price_data = self._fetch_price_data(ticker)
-        headlines  = self._fetch_headlines(ticker)
-        reddit     = self._fetch_reddit(ticker)
+        price_data = await self._fetch_price_data(ticker)
+        headlines = await self._fetch_headlines(ticker)
+        reddit = await self._fetch_reddit(ticker)
 
         return MarketContext(
             current_price=price_data.get("current_price"),

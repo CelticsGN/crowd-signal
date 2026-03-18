@@ -203,7 +203,9 @@ export function useSimulationStream() {
       }
     }
 
-    socket.onerror = () => {
+    socket.onerror = (event) => {
+      console.error("[WS] Connection failed:", event)
+      console.error("[WS] Falling back to POST endpoint")
       if (!hasCompletedRef.current) {
         runFallback(payload)
       }
@@ -212,6 +214,7 @@ export function useSimulationStream() {
     socket.onclose = () => {
       setIsConnected(false)
       if (!hasCompletedRef.current) {
+        console.error("[WS] Falling back to POST endpoint")
         runFallback(payload)
       }
     }

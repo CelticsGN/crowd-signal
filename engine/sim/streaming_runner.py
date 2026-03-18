@@ -299,37 +299,29 @@ async def run_simulation_streaming(
             catalyst_analysis=catalyst_analysis,
         )
         narrator_entry = next((entry for entry in crowd_narrative if entry.get("persona") == "narrator"), None)
-    except Exception:
-        logger.exception("narrator_groq_generation_failed ticker=%s", ticker)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("[NARRATOR] narrator_groq_generation_failed ticker=%s error=%s", ticker, str(exc))
         crowd_narrative = []
 
-    if narrator_entry is None:
-        if crowd_narrative:
-            logger.warning("narrator_missing_from_crowd_narrative ticker=%s", ticker)
-        final_probability_up = float(final_summary["probability_up"])
-        final_probability_pct = round(final_probability_up * 100.0, 1)
-        consensus_label = "bullish" if final_probability_up > 0.5 else "bearish"
-        narrator_entry = {
-            "type": "narrator",
+    if narrator_entry is not None:
+        yield {"type": "narrator", **narrator_entry}
+    else:
+        yield {
+            "type": "narrator_error",
+            "message": "Narrator generation failed - Groq unavailable",
             "agent_id": "narrator",
             "persona": "narrator",
-            "message": (
-                f"Simulation complete. Crowd reached {final_probability_pct}% {consensus_label} "
-                f"consensus after {max_ticks} ticks. This is probabilistic simulation, not financial advice."
-            ),
-            "stance": float(final_summary["mean_stance"]),
         }
-
-    yield {"type": "narrator", **narrator_entry}
 
     merged_narrative = list(stream_thoughts)
     merged_narrative.extend([entry for entry in crowd_narrative if entry.get("persona") != "narrator"])
-    merged_narrative.append({
-        "agent_id": narrator_entry.get("agent_id", "narrator"),
-        "persona": narrator_entry.get("persona", "narrator"),
-        "message": narrator_entry.get("message", ""),
-        "stance": float(narrator_entry.get("stance", final_summary["mean_stance"])),
-    })
+    if narrator_entry is not None:
+        merged_narrative.append({
+            "agent_id": narrator_entry.get("agent_id", "narrator"),
+            "persona": narrator_entry.get("persona", "narrator"),
+            "message": narrator_entry.get("message", ""),
+            "stance": float(narrator_entry.get("stance", final_summary["mean_stance"])),
+        })
 
     yield {
         "type": "complete",

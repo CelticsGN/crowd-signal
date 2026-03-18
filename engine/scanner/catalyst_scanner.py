@@ -1,14 +1,15 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import random
 from datetime import date
 from typing import Any
 
 from psycopg2.extras import Json, RealDictCursor
-import yfinance as yf
 
-from api.routes.ticker_catalog import TICKERS
+from api.ticker_catalog import TICKERS
 from engine.data.news_connector import NewsConnector
 from engine.memory.db import get_db_connection
 from engine.sim.llm_parser import analyze_catalyst
@@ -36,9 +37,9 @@ def score_headline_priority(headline: str) -> str:
     return "low"
 
 
-def scan_catalysts_for_ticker(ticker: str) -> dict[str, Any] | None:
+async def scan_catalysts_for_ticker(ticker: str) -> dict[str, Any] | None:
     try:
-        records = NewsConnector().fetch(ticker) or []
+        records = await NewsConnector().fetch(ticker)
 
         ranked: list[dict[str, Any]] = []
         for item in records:
@@ -55,33 +56,17 @@ def scan_catalysts_for_ticker(ticker: str) -> dict[str, Any] | None:
                 }
             )
 
+        logger.info("[SCANNER] %s: headlines found: %s", ticker, len(ranked))
+
         if ranked:
             ranked.sort(key=lambda row: _PRIORITY_RANK.get(str(row.get("priority", "low")), 99))
+            ranked[0]["_headline_count"] = len(ranked)
             return ranked[0]
 
-        info = yf.Ticker(ticker).info or {}
-        pct = info.get("regularMarketChangePercent")
-        if pct is None:
-            return None
-
-        pct_value = float(pct)
-        if abs(pct_value) <= 2.0:
-            return None
-
-        if pct_value > 0:
-            headline = f"{ticker} up {pct_value:.2f}% on strong momentum"
-        else:
-            headline = f"{ticker} down {abs(pct_value):.2f}% on selling pressure"
-
-        return {
-            "ticker": ticker,
-            "catalyst": headline,
-            "headline": headline,
-            "source": "yfinance",
-            "priority": "low",
-        }
+        logger.warning("[SCANNER] %s: no catalyst found - skipping", ticker)
+        return None
     except Exception as exc:  # noqa: BLE001
-        logger.warning("scan_catalysts_for_ticker_failed ticker=%s error=%s", ticker, exc)
+        logger.error("[SCANNER] %s: FAILED - %s: %s", ticker, type(exc).__name__, str(exc))
         return None
 
 
@@ -125,6 +110,8 @@ async def run_daily_scan(market: str = "ALL") -> dict[str, Any]:
         "catalysts_found": 0,
         "simulations_run": 0,
         "report_date": str(date.today()),
+        "errors": [],
+        "skipped_tickers": [],
     }
 
     conn = get_db_connection()
@@ -137,19 +124,27 @@ async def run_daily_scan(market: str = "ALL") -> dict[str, Any]:
 
     try:
         for ticker in _market_tickers(market):
+            logger.info("[SCANNER] Starting scan for %s", ticker)
             summary["tickers_scanned"] += 1
             try:
-                scanned = scan_catalysts_for_ticker(ticker)
+                logger.info("[SCANNER] %s: fetching headlines...", ticker)
+                scanned = await scan_catalysts_for_ticker(ticker)
                 if scanned is None:
+                    logger.warning("[SCANNER] %s: 0 headlines returned from NewsConnector", ticker)
+                    summary["skipped_tickers"].append(ticker)
+                    await asyncio.sleep(2 + random.uniform(0, 1))
                     continue
 
                 summary["catalysts_found"] += 1
+                logger.info("[SCANNER] %s: headlines found: %s", ticker, int(scanned.get("_headline_count", 1)))
                 catalyst = str(scanned["catalyst"])
+                logger.info("[SCANNER] %s: top catalyst: %s", ticker, catalyst)
 
                 analysis = analyze_catalyst(catalyst)
                 event_type = str(getattr(getattr(analysis, "extraction", None), "event_type", ""))
                 catalyst_bias = float(getattr(analysis, "final_bias", 0.0))
 
+                logger.info("[SCANNER] %s: running simulation...", ticker)
                 sim_result = run_simulation(ticker, catalyst, 120)
                 summary["simulations_run"] += 1
 
@@ -182,6 +177,12 @@ async def run_daily_scan(market: str = "ALL") -> dict[str, Any]:
 
                 probability_up = float(sim_result.get("probability_up", 0.0))
                 probability_down = float(sim_result.get("probability_down", 0.0))
+                logger.info(
+                    "[SCANNER] %s: simulation complete - up:%s down:%s",
+                    ticker,
+                    probability_up,
+                    probability_down,
+                )
 
                 entry = {
                     "ticker": ticker,
@@ -200,9 +201,13 @@ async def run_daily_scan(market: str = "ALL") -> dict[str, Any]:
                     in_entries.append(entry)
                 else:
                     us_entries.append(entry)
+
+                await asyncio.sleep(2 + random.uniform(0, 1))
             except Exception as exc:  # noqa: BLE001
                 conn.rollback()
-                logger.exception("run_daily_scan_ticker_failed ticker=%s error=%s", ticker, exc)
+                logger.error("[SCANNER] %s: FAILED - %s: %s", ticker, type(exc).__name__, str(exc))
+                summary["errors"].append(f"{ticker}: {type(exc).__name__}: {str(exc)}")
+                await asyncio.sleep(2 + random.uniform(0, 1))
                 continue
 
         accuracy_this_week = 0.0
@@ -249,10 +254,17 @@ async def run_daily_scan(market: str = "ALL") -> dict[str, Any]:
                 ),
             )
         conn.commit()
+        logger.info(
+            "[SCANNER] Scan complete: %s scanned, %s catalysts, %s simulations",
+            summary["tickers_scanned"],
+            summary["catalysts_found"],
+            summary["simulations_run"],
+        )
         return summary
     except Exception as exc:  # noqa: BLE001
         conn.rollback()
-        logger.exception("run_daily_scan_failed error=%s", exc)
+        logger.error("[SCANNER] GLOBAL FAILED - %s: %s", type(exc).__name__, str(exc))
+        summary["errors"].append(f"global: {type(exc).__name__}: {str(exc)}")
         return summary
     finally:
         try:

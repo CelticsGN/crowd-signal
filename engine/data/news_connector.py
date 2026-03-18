@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+import logging
 from typing import Optional
 import re
 
@@ -11,6 +14,8 @@ import feedparser
 
 from .base_connector import BaseConnector
 from .market_utils import is_indian_stock
+
+logger = logging.getLogger(__name__)
 
 # RSS feed URLs for financial news
 US_RSS_FEEDS: list[str] = [
@@ -98,10 +103,9 @@ class NewsConnector(BaseConnector):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _parse_feed(self, url: str, ticker: str) -> list[NewsEvent]:
+    def _parse_feed(self, parsed: feedparser.FeedParserDict, url: str, ticker: str) -> list[NewsEvent]:
         """Download and parse a single RSS *url*, filtering by *ticker*."""
         events: list[NewsEvent] = []
-        parsed = feedparser.parse(url)
         source = url.split("/")[2]  # hostname
 
         for entry in parsed.entries:
@@ -133,11 +137,29 @@ class NewsConnector(BaseConnector):
                 )
         return events
 
+    def _parse_with_timeout(self, url: str) -> feedparser.FeedParserDict:
+        def _worker() -> feedparser.FeedParserDict:
+            return feedparser.parse(
+                url,
+                agent="crowd-signal/1.0",
+                request_headers={
+                    "User-Agent": "crowd-signal/1.0 (research tool)",
+                    "Connection": "close",
+                },
+            )
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(_worker)
+            try:
+                return future.result(timeout=8)
+            except FutureTimeoutError as exc:
+                raise TimeoutError(f"[NEWS] {url} timed out after 8s") from exc
+
     # ------------------------------------------------------------------
     # BaseConnector implementation
     # ------------------------------------------------------------------
 
-    def fetch(self, ticker: str) -> list[dict]:
+    async def fetch(self, ticker: str) -> list[dict]:
         """Fetch news events for *ticker* from all configured RSS feeds.
 
         Args:
@@ -149,12 +171,21 @@ class NewsConnector(BaseConnector):
             ``published``, ``url``, ``source``, ``ticker_mentions``.
         """
         self.last_events = []
+        logger.info("[NEWS] Fetching feeds for %s", ticker)
         for feed_url in self.get_feeds(ticker):
             try:
-                self.last_events.extend(self._parse_feed(feed_url, ticker))
-            except Exception:
-                # Network or parse errors must not crash the simulation
-                pass
+                logger.info("[NEWS] %s: trying feed %s", ticker, feed_url)
+                parsed = await asyncio.to_thread(self._parse_with_timeout, feed_url)
+                entries_count = len(getattr(parsed, "entries", []) or [])
+                logger.info("[NEWS] %s: feed returned %s entries", ticker, entries_count)
+                self.last_events.extend(self._parse_feed(parsed, feed_url, ticker))
+            except TimeoutError as exc:
+                logger.error(str(exc))
+            except Exception as exc:  # noqa: BLE001
+                logger.error("[NEWS] %s: feed %s FAILED - %s", ticker, feed_url, str(exc))
+            await asyncio.sleep(0.5)
+
+        logger.info("[NEWS] %s: total headlines after all feeds: %s", ticker, len(self.last_events))
 
         return [
             {
