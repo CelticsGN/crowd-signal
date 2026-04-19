@@ -1,0 +1,21 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Crowd Signal Favicon</title>
+  <defs>
+    <pattern id="dotGrid" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse">
+      <circle cx="1.5" cy="1.5" r="0.9" fill="#242424" />
+    </pattern>
+  </defs>
+
+  <rect width="64" height="64" fill="#111111" />
+  <rect width="64" height="64" fill="url(#dotGrid)" />
+  <rect x="2" y="2" width="60" height="60" stroke="#F2F1EA" stroke-width="2" />
+
+  <!-- Blocky C glyph for CROWD -->
+  <rect x="14" y="14" width="10" height="36" fill="#F2F1EA" shape-rendering="crispEdges" />
+  <rect x="14" y="14" width="30" height="10" fill="#F2F1EA" shape-rendering="crispEdges" />
+  <rect x="14" y="40" width="30" height="10" fill="#F2F1EA" shape-rendering="crispEdges" />
+
+  <!-- Signal pulse accent -->
+  <rect x="40" y="28" width="10" height="8" fill="#EA580C" shape-rendering="crispEdges" />
+  <rect x="50" y="26" width="4" height="12" fill="#EA580C" shape-rendering="crispEdges" />
+</svg>
