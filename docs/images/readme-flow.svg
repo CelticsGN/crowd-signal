@@ -1,0 +1,54 @@
+<svg width="1600" height="520" viewBox="0 0 1600 520" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Crowd Signal Flow</title>
+  <desc id="desc">System flow from catalyst input to output artifacts.</desc>
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#1f2937"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#7ae582"/>
+      <stop offset="100%" stop-color="#4cc9f0"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#7dd3fc"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="520" fill="#0b1220"/>
+  <text x="60" y="66" fill="#f8fafc" font-family="Segoe UI, Arial, sans-serif" font-size="40" font-weight="700">Crowd Signal Pipeline</text>
+
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="22" fill="#dbeafe">
+    <rect x="60" y="130" width="260" height="180" rx="16" fill="url(#g1)" stroke="#334155"/>
+    <text x="95" y="180" font-weight="700">1. Catalyst Input</text>
+    <text x="95" y="220">Ticker + event</text>
+    <text x="95" y="255">Horizon minutes</text>
+
+    <rect x="390" y="130" width="300" height="180" rx="16" fill="url(#g1)" stroke="#334155"/>
+    <text x="425" y="180" font-weight="700">2. Intelligence Layer</text>
+    <text x="425" y="220">LLM parsing + graph bias</text>
+    <text x="425" y="255">Market + memory adjustments</text>
+
+    <rect x="760" y="130" width="300" height="180" rx="16" fill="url(#g1)" stroke="#334155"/>
+    <text x="795" y="180" font-weight="700">3. Crowd Engine</text>
+    <text x="795" y="220">100 persona agents</text>
+    <text x="795" y="255">Tick-by-tick influence updates</text>
+
+    <rect x="1130" y="130" width="400" height="180" rx="16" fill="url(#g1)" stroke="#334155"/>
+    <text x="1165" y="180" font-weight="700">4. Live Stream + Artifacts</text>
+    <text x="1165" y="220">WebSocket conversation turns</text>
+    <text x="1165" y="255">Probabilities, narrative, report rows</text>
+  </g>
+
+  <line x1="320" y1="220" x2="390" y2="220" stroke="url(#edge)" stroke-width="5" marker-end="url(#arrow)"/>
+  <line x1="690" y1="220" x2="760" y2="220" stroke="url(#edge)" stroke-width="5" marker-end="url(#arrow)"/>
+  <line x1="1060" y1="220" x2="1130" y2="220" stroke="url(#edge)" stroke-width="5" marker-end="url(#arrow)"/>
+
+  <rect x="60" y="360" width="1470" height="110" rx="14" fill="#111827" stroke="#334155"/>
+  <text x="90" y="404" fill="#cbd5e1" font-family="Consolas, Monaco, monospace" font-size="24">
+    Outputs: /api/v1/simulate, /ws/simulate, /api/v1/accuracy, /api/v1/daily-report
+  </text>
+  <text x="90" y="438" fill="#cbd5e1" font-family="Consolas, Monaco, monospace" font-size="24">
+    Storage: simulation memory + directional scoring + scheduled daily scans
+  </text>
+</svg>
