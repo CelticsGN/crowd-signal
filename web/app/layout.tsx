@@ -3,7 +3,6 @@ import { JetBrains_Mono } from 'next/font/google'
 import { GeistPixelGrid } from 'geist/font/pixel'
 import { Analytics } from '@vercel/analytics/react'
 import { ThemeProvider } from '@/components/theme-provider'
-import { Analytics } from '@vercel/analytics/next'
 
 import './globals.css'
 
@@ -88,7 +87,6 @@ export default function RootLayout({
       <body className="font-mono antialiased">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}
-          <Analytics />
         </ThemeProvider>
         <Analytics />
       </body>
