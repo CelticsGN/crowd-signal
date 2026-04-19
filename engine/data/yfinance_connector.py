@@ -11,6 +11,11 @@ from .base_connector import BaseConnector
 
 logger = logging.getLogger(__name__)
 
+_RATE_LIMIT_RETRY_SECONDS = 5
+_RATE_LIMIT_COOLDOWN_SECONDS = 90
+_rate_limited_until_monotonic = 0.0
+_last_cooldown_log_monotonic = 0.0
+
 
 def _is_rate_limit_error(exc: Exception) -> bool:
     text = str(exc).lower()
@@ -52,6 +57,21 @@ class YFinanceConnector(BaseConnector):
             ``type`` key (``"option_call"`` / ``"option_put"``) together
             with strike, expiry, implied-volatility and open-interest.
         """
+        global _rate_limited_until_monotonic
+        global _last_cooldown_log_monotonic
+
+        now = time.monotonic()
+        if now < _rate_limited_until_monotonic:
+            remaining = max(1, int(_rate_limited_until_monotonic - now))
+            if (now - _last_cooldown_log_monotonic) >= 30:
+                logger.warning(
+                    "[YFINANCE] %s: rate-limit cooldown active (%ss remaining) - skipping fetch",
+                    ticker,
+                    remaining,
+                )
+                _last_cooldown_log_monotonic = now
+            raise RuntimeError(f"Yahoo Finance cooldown active ({remaining}s remaining)")
+
         for attempt in range(2):
             try:
                 logger.info("[YFINANCE] Fetching data for %s", ticker)
@@ -104,10 +124,28 @@ class YFinanceConnector(BaseConnector):
 
                 return results
             except Exception as exc:  # noqa: BLE001
-                if attempt == 0 and _is_rate_limit_error(exc):
-                    logger.warning("[YFINANCE] %s: rate limited, retrying in 5s", ticker)
-                    time.sleep(5)
-                    continue
+                if _is_rate_limit_error(exc):
+                    if attempt == 0:
+                        logger.warning(
+                            "[YFINANCE] %s: rate limited, retrying in %ss",
+                            ticker,
+                            _RATE_LIMIT_RETRY_SECONDS,
+                        )
+                        time.sleep(_RATE_LIMIT_RETRY_SECONDS)
+                        continue
+
+                    _rate_limited_until_monotonic = max(
+                        _rate_limited_until_monotonic,
+                        time.monotonic() + _RATE_LIMIT_COOLDOWN_SECONDS,
+                    )
+                    logger.error(
+                        "[YFINANCE] %s: FAILED - %s. Entering cooldown for %ss.",
+                        ticker,
+                        str(exc),
+                        _RATE_LIMIT_COOLDOWN_SECONDS,
+                    )
+                    raise
+
                 logger.error("[YFINANCE] %s: FAILED - %s", ticker, str(exc))
                 raise
 

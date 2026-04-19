@@ -48,6 +48,8 @@ class RedditConnector(BaseConnector):
     are returned so the simulation always works with fresh crowd signal.
     """
 
+    _missing_credentials_warned = False
+
     def __init__(
         self,
         subreddits: list[str] | None = None,
@@ -108,7 +110,9 @@ class RedditConnector(BaseConnector):
         logger.info("[REDDIT] Fetching posts for %s", ticker)
 
         if not self._client_id or not self._client_secret:
-            logger.warning("[REDDIT] credentials not configured - skipping")
+            if not RedditConnector._missing_credentials_warned:
+                logger.warning("[REDDIT] credentials not configured - skipping")
+                RedditConnector._missing_credentials_warned = True
             return results
 
         target_subreddits = self.get_subreddits(ticker)

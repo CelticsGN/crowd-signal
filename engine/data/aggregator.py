@@ -96,8 +96,8 @@ class MarketDataAggregator:
         """Return price/volume/options fields or empty dict on failure."""
         try:
             records = await asyncio.to_thread(self._yf.fetch, ticker)
-        except Exception as exc:  # noqa: BLE001
-            logger.error("[YFINANCE] %s: FAILED - %s", ticker, str(exc))
+        except Exception:  # noqa: BLE001
+            # YFinanceConnector already logs retry/failure details.
             return {}
 
         ohlcv = [r for r in records if r["type"] == "ohlcv"]
