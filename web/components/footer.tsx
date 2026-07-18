@@ -31,15 +31,6 @@ export function Footer() {
             >
               Nihal Pardeshi
             </a>
-            {" and "}
-            <a
-              href="https://www.linkedin.com/in/gaurav-guddeti-a2359827b/"
-              target="_blank"
-              rel="noreferrer"
-              className="underline hover:text-foreground"
-            >
-              Gaurav Guddeti
-            </a>
           </span>
         </div>
         <div className="flex items-center gap-6">
