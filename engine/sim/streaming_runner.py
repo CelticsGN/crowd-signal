@@ -9,6 +9,7 @@ from engine.memory.context import compute_memory_bias
 from engine.memory.db import save_simulation_run
 from engine.sim.llm_parser import parse_catalyst_analysis_llm
 from engine.sim.narrator import generate_crowd_narrative
+from engine.sim.verdict import blend_probabilities, compute_verdict
 from engine.sim.runner import _clamp_stance, spawn_agents, tick_update
 
 if TYPE_CHECKING:
@@ -128,10 +129,6 @@ def _apply_market_adjustment(catalyst_bias: float, market_context: "MarketContex
     if market_context.volume_vs_avg is not None and market_context.volume_vs_avg > 1.5:
         catalyst_bias *= 1.2
 
-    if market_context.reddit_mentions is not None and market_context.reddit_mentions > 50:
-        sign = 1.0 if catalyst_bias >= 0 else -1.0
-        catalyst_bias += sign * 0.1
-
     if market_context.options_put_call_ratio is not None:
         if market_context.options_put_call_ratio > 1.5:
             catalyst_bias -= 0.1
@@ -158,7 +155,7 @@ async def run_simulation_streaming(
         "agent_count": 100,
     }
 
-    catalyst_analysis = parse_catalyst_analysis_llm(catalyst)
+    catalyst_analysis = parse_catalyst_analysis_llm(catalyst, ticker)
     catalyst_bias = float(catalyst_analysis.get("final_bias", 0.0))
 
     market_input_bias = catalyst_bias
@@ -288,6 +285,21 @@ async def run_simulation_streaming(
         rules_fired=rules_fired,
     )
 
+    blended_up, blended_down = blend_probabilities(
+        raw_probability_up=float(final_summary["probability_up"]),
+        raw_probability_down=float(final_summary["probability_down"]),
+        catalyst_bias=float(catalyst_analysis.get("final_bias", catalyst_bias)),
+    )
+    verdict = compute_verdict(
+        probability_up=blended_up,
+        probability_down=blended_down,
+        catalyst_bias=float(catalyst_analysis.get("final_bias", catalyst_bias)),
+        mean_stance=float(final_summary["mean_stance"]),
+        current_price=market_context.current_price if market_context else None,
+        ticker=ticker,
+        persona_mean_stance=final_summary["persona_mean_stance"],
+    )
+
     crowd_narrative: list[dict[str, Any]] = []
     narrator_entry: dict[str, Any] | None = None
     try:
@@ -304,6 +316,7 @@ async def run_simulation_streaming(
                 "agent_count": final_summary["agent_count"],
             },
             catalyst_analysis=catalyst_analysis,
+            verdict=verdict,
         )
         narrator_entry = next((entry for entry in crowd_narrative if entry.get("persona") == "narrator"), None)
     except Exception as exc:  # noqa: BLE001

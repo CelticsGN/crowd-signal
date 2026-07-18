@@ -12,29 +12,40 @@ from openai import OpenAI
 
 load_dotenv()
 
-_EXTRACTION_PROMPT = (
-    "You are an information extraction assistant for intraday stock catalysts. "
-    "Given catalyst text, return ONLY valid JSON with these keys:\n"
-    "primary_entity: string\n"
-    "event_type: one of [earnings, insider_sale, macro, legal, product, regulatory]\n"
-    "magnitude: one of [strong, moderate, weak]\n"
-    "direction: one of [positive, negative, neutral]\n"
-    "related_entities: array of strings\n"
-    "examples:\n"
-    "Example 1:\n"
-    "Catalyst: Earnings beat driven by AI demand and data center growth\n"
-    "Output: {\"primary_entity\":\"company\",\"event_type\":\"earnings\",\"magnitude\":\"strong\",\"direction\":\"positive\",\"related_entities\":[\"data_center_demand\",\"AI\"]}\n"
-    "Example 2:\n"
-    "Catalyst: CEO sold 2 million shares worth $800M\n"
-    "Output: {\"primary_entity\":\"CEO\",\"event_type\":\"insider_sale\",\"magnitude\":\"strong\",\"direction\":\"negative\",\"related_entities\":[]}\n"
-    "Example 3:\n"
-    "Catalyst: Federal Reserve raises rates 50 basis points\n"
-    "Output: {\"primary_entity\":\"Federal Reserve\",\"event_type\":\"macro\",\"magnitude\":\"strong\",\"direction\":\"negative\",\"related_entities\":[\"fed_related\",\"interest_rates\"]}\n"
-    "Example 4:\n"
-    "Catalyst: FDA approves new cancer drug\n"
-    "Output: {\"primary_entity\":\"FDA\",\"event_type\":\"regulatory\",\"magnitude\":\"strong\",\"direction\":\"positive\",\"related_entities\":[\"drug_approval\",\"healthcare\"]}\n"
-    "Return JSON only. No markdown. No explanation."
-)
+def _build_extraction_prompt(target_ticker: str) -> str:
+    ticker_instr = (
+        f"The catalyst text may mention multiple companies. Only extract information relevant to {target_ticker}. "
+        f"Return exactly one JSON object about {target_ticker} specifically — never multiple objects, never an array."
+    ) if target_ticker else "Return exactly one JSON object — never multiple objects, never an array."
+
+    return (
+        "You are an information extraction assistant for intraday stock catalysts. "
+        "Given catalyst text, return ONLY valid JSON with these keys:\n"
+        "primary_entity: string\n"
+        "event_type: one of [earnings, insider_sale, macro, legal, product, regulatory]\n"
+        "magnitude: one of [strong, moderate, weak]\n"
+        "direction: one of [positive, negative, neutral]\n"
+        "related_entities: array of strings\n\n"
+        f"{ticker_instr}\n\n"
+        "examples:\n"
+        "Example 1:\n"
+        "Catalyst: Earnings beat driven by AI demand and data center growth\n"
+        "Output: {\"primary_entity\":\"company\",\"event_type\":\"earnings\",\"magnitude\":\"strong\",\"direction\":\"positive\",\"related_entities\":[\"data_center_demand\",\"AI\"]}\n"
+        "Example 2:\n"
+        "Catalyst: CEO sold 2 million shares worth $800M\n"
+        "Output: {\"primary_entity\":\"CEO\",\"event_type\":\"insider_sale\",\"magnitude\":\"strong\",\"direction\":\"negative\",\"related_entities\":[]}\n"
+        "Example 3:\n"
+        "Catalyst: Federal Reserve raises rates 50 basis points\n"
+        "Output: {\"primary_entity\":\"Federal Reserve\",\"event_type\":\"macro\",\"magnitude\":\"strong\",\"direction\":\"negative\",\"related_entities\":[\"fed_related\",\"interest_rates\"]}\n"
+        "Example 4:\n"
+        "Catalyst: FDA approves new cancer drug\n"
+        "Output: {\"primary_entity\":\"FDA\",\"event_type\":\"regulatory\",\"magnitude\":\"strong\",\"direction\":\"positive\",\"related_entities\":[\"drug_approval\",\"healthcare\"]}\n"
+        "Example 5 (Multi-entity):\n"
+        "Target Ticker: NVDA\n"
+        "Catalyst: AMD and INTC plummeted after missing estimates, while NVDA held steady amidst strong data center demand.\n"
+        "Output: {\"primary_entity\":\"NVDA\",\"event_type\":\"earnings\",\"magnitude\":\"moderate\",\"direction\":\"positive\",\"related_entities\":[\"data_center_demand\",\"semiconductor_sector\"]}\n\n"
+        "Return JSON only. No markdown. No explanation."
+    )
 
 _MODEL = "llama-3.1-8b-instant"  # llama3-8b-8192 is decommissioned
 _TIMEOUT = 8.0  # seconds — allows for Groq cold starts
@@ -154,16 +165,60 @@ def _normalize_direction(raw: Any) -> Direction:
     return "neutral"
 
 
-def _extract_first_json_object(raw: str) -> dict[str, Any] | None:
-    start = raw.find("{")
-    end = raw.rfind("}")
-    if start < 0 or end < 0 or end <= start:
+def _extract_json_objects(raw: str, ticker: str = "") -> dict[str, Any] | None:
+    import json
+    import difflib
+    objects = []
+    start_idx = 0
+    while True:
+        start = raw.find("{", start_idx)
+        if start < 0:
+            break
+        brace_count = 0
+        end = -1
+        for i in range(start, len(raw)):
+            if raw[i] == '{':
+                brace_count += 1
+            elif raw[i] == '}':
+                brace_count -= 1
+                if brace_count == 0:
+                    end = i
+                    break
+        if end >= 0:
+            try:
+                parsed = json.loads(raw[start : end + 1])
+                if isinstance(parsed, dict):
+                    objects.append(parsed)
+            except Exception:
+                pass
+            start_idx = end + 1
+        else:
+            break
+
+    if not objects:
         return None
-    try:
-        parsed = json.loads(raw[start : end + 1])
-        return parsed if isinstance(parsed, dict) else None
-    except Exception:
-        return None
+
+    if ticker and len(objects) > 1:
+        t = ticker.lower()
+        best_obj = objects[0]
+        best_score = -1.0
+        
+        for obj in objects:
+            e = str(obj.get("primary_entity", "")).lower()
+            if t in e or (e and e in t):
+                score = 1.0
+            elif t[:2] == e[:2]:
+                score = 0.8
+            else:
+                score = difflib.SequenceMatcher(None, t, e).ratio()
+            
+            if score > best_score:
+                best_score = score
+                best_obj = obj
+                
+        return best_obj
+        
+    return objects[0]
 
 
 def _magnitude_from_text(text: str) -> Magnitude:
@@ -330,7 +385,7 @@ def _normalize_extraction_payload(payload: dict[str, Any], catalyst: str) -> Cat
     return extraction
 
 
-def _extract_entities_llm(catalyst: str) -> CatalystExtraction:
+def _extract_entities_llm(catalyst: str, ticker: str = "") -> CatalystExtraction:
     client = OpenAI(
         api_key=os.getenv("GROQ_API_KEY"),
         base_url=os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1"),
@@ -340,15 +395,15 @@ def _extract_entities_llm(catalyst: str) -> CatalystExtraction:
     response = client.chat.completions.create(
         model=_MODEL,
         messages=[
-            {"role": "system", "content": _EXTRACTION_PROMPT},
-            {"role": "user", "content": catalyst},
+            {"role": "system", "content": _build_extraction_prompt(ticker)},
+            {"role": "user", "content": f"Target Ticker: {ticker}\nCatalyst: {catalyst}" if ticker else f"Catalyst: {catalyst}"},
         ],
         max_tokens=220,
         temperature=0.0,
     )
 
     raw = (response.choices[0].message.content or "").strip()
-    payload = _extract_first_json_object(raw)
+    payload = _extract_json_objects(raw, ticker)
     if payload is None:
         raise ValueError("LLM extraction did not return valid JSON.")
 
@@ -568,14 +623,14 @@ def _build_graph_bias(extraction: CatalystExtraction) -> CatalystAnalysis:
     }
 
 
-def parse_catalyst_analysis_llm(catalyst: str) -> CatalystAnalysis:
+def parse_catalyst_analysis_llm(catalyst: str, ticker: str = "") -> CatalystAnalysis:
     """Two-step catalyst analysis pipeline.
 
     Step 1: extract structured entities and event details.
     Step 2: build a tiny knowledge graph and compute deterministic bias adjustments.
     """
     try:
-        extraction = _extract_entities_llm(catalyst)
+        extraction = _extract_entities_llm(catalyst, ticker)
     except Exception:
         extraction = _keyword_extraction_fallback(catalyst)
 
@@ -602,7 +657,7 @@ def parse_catalyst_analysis_llm(catalyst: str) -> CatalystAnalysis:
 
 def parse_catalyst_bias_llm(catalyst: str) -> float:
     """Backwards-compatible float parser returning final_bias from the new pipeline."""
-    return parse_catalyst_analysis_llm(catalyst)["final_bias"]
+    return parse_catalyst_analysis_llm(catalyst, "")["final_bias"]
 
 
 class _ExtractionView:
@@ -636,4 +691,4 @@ class _CatalystAnalysisView:
 
 def analyze_catalyst(catalyst: str) -> _CatalystAnalysisView:
     """Convenience wrapper used for direct debugging/verification scripts."""
-    return _CatalystAnalysisView(parse_catalyst_analysis_llm(catalyst))
+    return _CatalystAnalysisView(parse_catalyst_analysis_llm(catalyst, ""))

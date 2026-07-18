@@ -5,6 +5,7 @@ from engine.agents.persona import AgentState, PersonaType
 from engine.memory.context import compute_memory_bias
 from engine.memory.db import save_simulation_run
 from engine.sim.narrator import generate_crowd_narrative
+from engine.sim.verdict import blend_probabilities, compute_verdict
 import logging
 import random
 import re
@@ -183,13 +184,12 @@ def run_simulation(
     from the catalyst text is further adjusted before agents are spawned:
 
     * ``volume_vs_avg > 1.5``          → bias amplified ×1.2
-    * ``reddit_mentions > 50``         → bias magnitude +0.1
     * ``options_put_call_ratio > 1.5`` → nudge bearish (−0.1)
     * ``options_put_call_ratio < 0.5`` → nudge bullish (+0.1)
 
     All existing tick logic is unchanged.
     """
-    catalyst_analysis = parse_catalyst_analysis_llm(catalyst)
+    catalyst_analysis = parse_catalyst_analysis_llm(catalyst, ticker)
     catalyst_bias = catalyst_analysis["final_bias"]
 
     # --- Market-context bias adjustments (only touches catalyst_bias) -
@@ -200,15 +200,6 @@ def run_simulation(
             and market_context.volume_vs_avg > 1.5
         ):
             catalyst_bias *= 1.2
-
-        # High social activity → more volatile crowd
-        if (
-            market_context.reddit_mentions is not None
-            and market_context.reddit_mentions > 50
-        ):
-            # Push in the direction already implied by the bias
-            sign = 1.0 if catalyst_bias >= 0 else -1.0
-            catalyst_bias += sign * 0.1
 
         # Smart-money options signal
         if market_context.options_put_call_ratio is not None:
@@ -340,6 +331,21 @@ def run_simulation(
         rules_fired=rules_fired,
     )
 
+    blended_up, blended_down = blend_probabilities(
+        raw_probability_up=probability_up,
+        raw_probability_down=probability_down,
+        catalyst_bias=float(catalyst_analysis.get("final_bias", catalyst_bias)),
+    )
+    verdict = compute_verdict(
+        probability_up=blended_up,
+        probability_down=blended_down,
+        catalyst_bias=float(catalyst_analysis.get("final_bias", catalyst_bias)),
+        mean_stance=mean_stance,
+        current_price=market_context.current_price if market_context else None,
+        ticker=ticker,
+        persona_mean_stance=persona_mean_stance,
+    )
+
     crowd_narrative: list[dict] = []
     try:
         crowd_narrative = generate_crowd_narrative(
@@ -355,6 +361,7 @@ def run_simulation(
                 "agent_count": total,
             },
             catalyst_analysis=catalyst_analysis,
+            verdict=verdict,
         )
     except Exception:
         logger.exception("crowd_narrative_generation_failed ticker=%s", ticker)
@@ -368,6 +375,9 @@ def run_simulation(
         "agent_count": total,
         "initial_mean_stance": initial_mean_stance,
         "mean_stance": mean_stance,
+        "probability_up": blended_up,
+        "probability_down": blended_down,
+        "verdict": verdict,
         "up_count": up_count,
         "down_count": down_count,
         "stance_buckets": buckets,
