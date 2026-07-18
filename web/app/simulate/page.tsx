@@ -8,6 +8,7 @@ import { Footer } from "@/components/footer"
 import { LiveSimulationFeed } from "@/components/live-simulation-feed"
 import { SimulationForm } from "@/components/simulation-form"
 import { SimulationResults } from "@/components/simulation-results"
+import { VerdictCard } from "@/components/verdict-card"
 import { useSimulationStream } from "@/hooks/useSimulationStream"
 
 function SimulatePageContent() {
@@ -105,14 +106,29 @@ function SimulatePageContent() {
             </div>
           ) : null}
 
+          {finalResult?.verdict ? (
+            <VerdictCard verdict={finalResult.verdict} />
+          ) : null}
+
           {events.length > 0 ? (
-            <LiveSimulationFeed
-              events={events}
-              currentTick={currentTick}
-              maxTicks={maxTicks}
-              isConnected={isConnected}
-              isComplete={isComplete}
-            />
+            <div className="mt-8 border border-foreground/20 bg-background/80 p-4">
+              <details className="group" open={!isComplete}>
+                <summary className="flex cursor-pointer items-center justify-between font-mono text-xs uppercase tracking-[0.16em] text-muted-foreground outline-none">
+                  <span>// CROWD_NARRATIVE_FEED</span>
+                  <span className="group-open:hidden">[+] EXPAND</span>
+                  <span className="hidden group-open:inline">[-] COLLAPSE</span>
+                </summary>
+                <div className="mt-4 pt-4 border-t border-foreground/10">
+                  <LiveSimulationFeed
+                    events={events}
+                    currentTick={currentTick}
+                    maxTicks={maxTicks}
+                    isConnected={isConnected}
+                    isComplete={isComplete}
+                  />
+                </div>
+              </details>
+            </div>
           ) : null}
 
           {finalResult ? <SimulationResults data={finalResult} analysisRunId={analysisRunId} /> : null}

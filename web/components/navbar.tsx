@@ -37,6 +37,7 @@ export function Navbar() {
               { label: "Agent Types", href: "#" },
               { label: "Tech Stack", href: "#" },
               { label: "Inspiration", href: "#" },
+              { label: "Track Record", href: "/track-record" },
               { label: "Simulate", href: "/simulate" },
             ].map((link, i) => (
               <motion.a

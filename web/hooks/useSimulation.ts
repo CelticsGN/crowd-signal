@@ -68,6 +68,17 @@ export type NarrativeEntry = {
   stance: number
 }
 
+export type VerdictResponse = {
+  action: "BUY" | "SELL" | "HOLD"
+  confidence?: number
+  reasoning: string
+  entry_price?: number
+  target_price?: number
+  stop_price?: number
+  range_low?: number
+  range_high?: number
+}
+
 export type SimulateResponse = {
   ticker: string
   catalyst: string
@@ -83,6 +94,9 @@ export type SimulateResponse = {
     created_at: string
   }> | null
   crowd_narrative?: NarrativeEntry[] | null
+  verdict?: VerdictResponse | null
+  current_price?: number | null
+  volume_vs_avg?: number | null
 }
 
 export type StoredSimulationRun = {

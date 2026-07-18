@@ -3,9 +3,12 @@
 import { useEffect, useMemo, useState } from "react"
 
 type TickerAccuracyEntry = {
-  total: number
-  correct: number
-  accuracy_pct: number
+  directional_total: number
+  directional_correct: number
+  directional_accuracy_pct: number
+  hold_total: number
+  hold_correct: number
+  hold_accuracy_pct: number
 }
 
 type AccuracyStats = {
@@ -69,7 +72,7 @@ export function AccuracyBadge({ compact = false }: AccuracyBadgeProps) {
   const topTickers = useMemo(() => {
     if (!stats?.by_ticker) return []
     return Object.entries(stats.by_ticker)
-      .sort((a, b) => (b[1]?.total ?? 0) - (a[1]?.total ?? 0))
+      .sort((a, b) => (b[1]?.directional_total ?? 0) - (a[1]?.directional_total ?? 0))
       .slice(0, 3)
   }, [stats])
 
@@ -87,7 +90,7 @@ export function AccuracyBadge({ compact = false }: AccuracyBadgeProps) {
   if (!stats) return null
 
   const global = stats.global_accuracy
-  const calibrating = (global?.total ?? 0) < 20
+  const calibrating = (global?.directional_total ?? 0) < 20
 
   if (compact) {
     return (
@@ -99,7 +102,7 @@ export function AccuracyBadge({ compact = false }: AccuracyBadgeProps) {
           </p>
         ) : (
           <p className="mt-2 text-xs font-mono uppercase tracking-[0.16em] text-foreground">
-            {toPct(global.accuracy_pct)} directional accuracy across {global.total} runs
+            {toPct(global.directional_accuracy_pct)} directional accuracy across {global.directional_total} runs
           </p>
         )}
       </section>
@@ -116,15 +119,15 @@ export function AccuracyBadge({ compact = false }: AccuracyBadgeProps) {
         </p>
       ) : (
         <>
-          <p className="mt-4 text-4xl font-semibold text-foreground">{toPct(global.accuracy_pct)}</p>
-          <p className="mt-1 text-xs uppercase tracking-[0.16em] text-muted-foreground">directional accuracy across {global.total} runs</p>
+          <p className="mt-4 text-4xl font-semibold text-foreground">{toPct(global.directional_accuracy_pct)}</p>
+          <p className="mt-1 text-xs uppercase tracking-[0.16em] text-muted-foreground">directional accuracy across {global.directional_total} runs</p>
 
           {topTickers.length > 0 ? (
             <div className="mt-4 space-y-1 border-t border-foreground/20 pt-3">
               {topTickers.map(([ticker, entry]) => (
                 <div key={ticker} className="flex items-center justify-between text-xs font-mono uppercase tracking-[0.16em]">
                   <span className="text-foreground">{ticker}</span>
-                  <span className="text-muted-foreground">{Math.round(entry.accuracy_pct)}% ({entry.total} runs) {currencyTagForTicker(ticker)}</span>
+                  <span className="text-muted-foreground">{Math.round(entry.directional_accuracy_pct)}% ({entry.directional_total} runs) {currencyTagForTicker(ticker)}</span>
                 </div>
               ))}
             </div>

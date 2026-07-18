@@ -8,6 +8,7 @@ import { Footer } from "@/components/footer"
 import { CatalystGraph } from "@/components/catalyst-graph"
 import { CrowdNarrative } from "@/components/crowd-narrative"
 import { AccuracyBadge } from "@/components/accuracy-badge"
+import { VerdictCard } from "@/components/verdict-card"
 import type { SimulateResponse, StoredSimulationRun } from "@/hooks/useSimulation"
 
 function toPercent(value: number): string {
@@ -152,13 +153,25 @@ export default function AnalysisPage() {
               </section>
             ) : null}
 
+            {result.verdict ? (
+              <VerdictCard verdict={result.verdict} />
+            ) : null}
+
             {(result.crowd_narrative ?? []).length > 0 ? (
               <section className="w-full border border-foreground/20 bg-background/80 p-5">
-                <div className="flex items-center gap-4 mb-4">
-                  <span className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground">// CROWD_NARRATIVE</span>
-                  <div className="flex-1 border-t border-border" />
-                </div>
-                <CrowdNarrative crowdNarrative={result.crowd_narrative ?? []} />
+                <details className="group">
+                  <summary className="flex cursor-pointer select-none items-center justify-between font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground outline-none">
+                    <div className="flex items-center gap-4 flex-1">
+                      <span>// CROWD_NARRATIVE</span>
+                      <div className="flex-1 border-t border-border mr-4" />
+                    </div>
+                    <span className="group-open:hidden">[+] EXPAND</span>
+                    <span className="hidden group-open:inline">[-] COLLAPSE</span>
+                  </summary>
+                  <div className="mt-4">
+                    <CrowdNarrative crowdNarrative={result.crowd_narrative ?? []} />
+                  </div>
+                </details>
               </section>
             ) : null}
 
