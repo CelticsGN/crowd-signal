@@ -61,9 +61,7 @@ export function Navbar() {
             className="flex items-center gap-4"
           >
             <ThemeToggle />
-            <span className="hidden sm:block text-xs font-mono tracking-widest uppercase text-muted-foreground">
-              Active Development
-            </span>
+
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
               <Link
                 href="/simulate"
