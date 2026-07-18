@@ -61,6 +61,12 @@ def save_simulation_run(
     probability_down: float,
     final_bias: float,
     rules_fired: list[str],
+    *,
+    verdict_action: str | None = None,
+    verdict_confidence: int | None = None,
+    verdict_entry_price: float | None = None,
+    verdict_target_price: float | None = None,
+    verdict_stop_price: float | None = None,
 ) -> None:
     """Save simulation results to NeonDB.
 
@@ -89,9 +95,14 @@ def save_simulation_run(
                         probability_down,
                         final_bias,
                         rules_fired,
-                        price_at_simulation
+                        price_at_simulation,
+                        verdict_action,
+                        verdict_confidence,
+                        verdict_entry_price,
+                        verdict_target_price,
+                        verdict_stop_price
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     (
                         ticker,
@@ -106,6 +117,11 @@ def save_simulation_run(
                         float(final_bias),
                         rules_fired or [],
                         float(price_at_simulation) if price_at_simulation is not None else None,
+                        verdict_action,
+                        verdict_confidence,
+                        float(verdict_entry_price) if verdict_entry_price is not None else None,
+                        float(verdict_target_price) if verdict_target_price is not None else None,
+                        float(verdict_stop_price) if verdict_stop_price is not None else None,
                     ),
                 )
     except Exception as exc:  # noqa: BLE001
@@ -207,3 +223,67 @@ def get_latest_simulation_run_id(ticker: str, catalyst: str) -> str | None:
             conn.close()
         except Exception:  # noqa: BLE001
             pass
+
+
+def update_verdict_on_latest_run(
+    ticker: str,
+    catalyst: str,
+    *,
+    verdict_action: str,
+    verdict_confidence: int,
+    verdict_entry_price: float | None,
+    verdict_target_price: float | None,
+    verdict_stop_price: float | None,
+    verdict_range_low: float | None = None,
+    verdict_range_high: float | None = None,
+) -> None:
+    """Patch verdict fields onto the most recent simulation_runs row for ticker+catalyst.
+
+    Called by the route layer after blended probabilities have been computed,
+    so the persisted verdict matches what the user actually sees.
+    Fail-open: DB errors are logged and swallowed.
+    """
+    conn = _get_connection()
+    if conn is None:
+        return
+
+    try:
+        with conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE simulation_runs
+                    SET verdict_action       = %s,
+                        verdict_confidence   = %s,
+                        verdict_entry_price  = %s,
+                        verdict_target_price = %s,
+                        verdict_stop_price   = %s,
+                        verdict_range_low    = %s,
+                        verdict_range_high   = %s
+                    WHERE id = (
+                        SELECT id FROM simulation_runs
+                        WHERE ticker = %s AND catalyst = %s
+                        ORDER BY created_at DESC
+                        LIMIT 1
+                    )
+                    """,
+                    (
+                        verdict_action,
+                        verdict_confidence,
+                        float(verdict_entry_price) if verdict_entry_price is not None else None,
+                        float(verdict_target_price) if verdict_target_price is not None else None,
+                        float(verdict_stop_price) if verdict_stop_price is not None else None,
+                        float(verdict_range_low) if verdict_range_low is not None else None,
+                        float(verdict_range_high) if verdict_range_high is not None else None,
+                        ticker.upper(),
+                        catalyst,
+                    ),
+                )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("verdict_update_failed ticker=%s error=%s", ticker, exc)
+    finally:
+        try:
+            conn.close()
+        except Exception:  # noqa: BLE001
+            pass
+

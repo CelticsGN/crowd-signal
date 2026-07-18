@@ -38,9 +38,12 @@ ADD COLUMN IF NOT EXISTS price_at_simulation FLOAT DEFAULT NULL;
 CREATE TABLE IF NOT EXISTS accuracy_summary (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   ticker VARCHAR(10),
-  total_predictions INTEGER DEFAULT 0,
-  correct_predictions INTEGER DEFAULT 0,
-  accuracy_pct FLOAT DEFAULT 0.0,
+  directional_total INTEGER DEFAULT 0,
+  directional_correct INTEGER DEFAULT 0,
+  directional_accuracy_pct FLOAT DEFAULT 0.0,
+  hold_total INTEGER DEFAULT 0,
+  hold_correct INTEGER DEFAULT 0,
+  hold_accuracy_pct FLOAT DEFAULT 0.0,
   last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -49,8 +52,33 @@ ON accuracy_summary(ticker);
 
 CREATE TABLE IF NOT EXISTS accuracy_summary_global (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  total_predictions INTEGER DEFAULT 0,
-  correct_predictions INTEGER DEFAULT 0,
-  accuracy_pct FLOAT DEFAULT 0.0,
+  directional_total INTEGER DEFAULT 0,
+  directional_correct INTEGER DEFAULT 0,
+  directional_accuracy_pct FLOAT DEFAULT 0.0,
+  hold_total INTEGER DEFAULT 0,
+  hold_correct INTEGER DEFAULT 0,
+  hold_accuracy_pct FLOAT DEFAULT 0.0,
   last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Verdict fields added for the BUY/SELL/HOLD feature.
+ALTER TABLE simulation_runs
+ADD COLUMN IF NOT EXISTS verdict_action VARCHAR(4) DEFAULT NULL;
+
+ALTER TABLE simulation_runs
+ADD COLUMN IF NOT EXISTS verdict_confidence INTEGER DEFAULT NULL;
+
+ALTER TABLE simulation_runs
+ADD COLUMN IF NOT EXISTS verdict_entry_price FLOAT DEFAULT NULL;
+
+ALTER TABLE simulation_runs
+ADD COLUMN IF NOT EXISTS verdict_target_price FLOAT DEFAULT NULL;
+
+ALTER TABLE simulation_runs
+ADD COLUMN IF NOT EXISTS verdict_stop_price FLOAT DEFAULT NULL;
+
+ALTER TABLE simulation_runs
+ADD COLUMN IF NOT EXISTS verdict_range_low FLOAT DEFAULT NULL;
+
+ALTER TABLE simulation_runs
+ADD COLUMN IF NOT EXISTS verdict_range_high FLOAT DEFAULT NULL;

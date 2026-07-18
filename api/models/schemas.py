@@ -112,6 +112,32 @@ class MemoryEntry(BaseModel):
     created_at: str
 
 
+class VerdictResponse(BaseModel):
+    """Structured BUY / SELL / HOLD trading verdict derived from the simulation.
+
+    Attributes:
+        action:            One of ``BUY``, ``SELL``, ``HOLD``.
+        confidence:        Conviction score 0-100 (scales with distance from 0.50).
+        entry_price:       Current market price at time of simulation (None if unavailable).
+        target_price:      Price target in the direction of the call (None for HOLD / price unavailable).
+        stop_price:        Stop-loss level (None for HOLD / price unavailable).
+        range_low:         HOLD neutral band lower bound (None for BUY/SELL).
+        range_high:        HOLD neutral band upper bound (None for BUY/SELL).
+        reasoning_summary: 1-2 sentence plain-English explanation of why.
+        used_fallback:     True when ATR data was unavailable and flat-% logic was used.
+    """
+
+    action: str
+    confidence: int
+    entry_price: Optional[float] = None
+    target_price: Optional[float] = None
+    stop_price: Optional[float] = None
+    range_low: Optional[float] = None
+    range_high: Optional[float] = None
+    reasoning_summary: str
+    used_fallback: bool = True
+
+
 class NarrativeEntry(BaseModel):
     """Single vocal-agent narrative message from the simulation."""
 
@@ -134,8 +160,6 @@ class SimulationResult(BaseModel):
         personas:         Per-persona sentiment breakdown.
         current_price:    Live price from yfinance (None if unavailable).
         volume_vs_avg:    Today's volume / 30-day avg (None if unavailable).
-        reddit_mentions:  Reddit posts mentioning ticker in last 2 h (None if unavailable).
-        reddit_sentiment: Bag-of-words Reddit sentiment in [-1, 1] (None if unavailable).
     """
 
     ticker: str
@@ -149,19 +173,23 @@ class SimulationResult(BaseModel):
     memory_context: Optional[list[MemoryEntry]] = None
     crowd_narrative: Optional[list[NarrativeEntry]] = None
 
+    # Structured verdict — the headline BUY/SELL/HOLD call
+    verdict: Optional[VerdictResponse] = None
+
     # Live market context fields — all Optional for graceful degradation
     current_price: Optional[float] = None
     volume_vs_avg: Optional[float] = None
-    reddit_mentions: Optional[int] = None
-    reddit_sentiment: Optional[float] = None
 
 
 class TickerAccuracyEntry(BaseModel):
     """Directional prediction accuracy summary."""
 
-    total: int
-    correct: int
-    accuracy_pct: float
+    directional_total: int
+    directional_correct: int
+    directional_accuracy_pct: float
+    hold_total: int
+    hold_correct: int
+    hold_accuracy_pct: float
 
 
 class AccuracyStats(BaseModel):
@@ -170,6 +198,28 @@ class AccuracyStats(BaseModel):
     global_accuracy: TickerAccuracyEntry
     by_ticker: dict[str, TickerAccuracyEntry]
     last_updated: str
+
+
+class RecentRunEntry(BaseModel):
+    """A recently scored simulation run."""
+
+    ticker: str
+    action: str
+    confidence: Optional[int] = None
+    entry_price: Optional[float] = None
+    target_price: Optional[float] = None
+    stop_price: Optional[float] = None
+    range_low: Optional[float] = None
+    range_high: Optional[float] = None
+    prediction_correct: Optional[bool] = None
+    actual_price_24h: Optional[float] = None
+    created_at: str
+
+
+class RecentRunsResponse(BaseModel):
+    """Response payload for recent scored runs."""
+
+    runs: list[RecentRunEntry]
 
 
 class DailyReportEntry(BaseModel):
