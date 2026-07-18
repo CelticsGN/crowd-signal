@@ -46,10 +46,13 @@ async def scan_catalysts_for_ticker(ticker: str) -> dict[str, Any] | None:
             headline = str(item.get("headline", "")).strip()
             if not headline:
                 continue
+            summary = str(item.get("summary", "")).strip()
+            catalyst_text = f"{headline} - {summary}" if summary else headline
+            
             ranked.append(
                 {
                     "ticker": ticker,
-                    "catalyst": headline,
+                    "catalyst": catalyst_text,
                     "headline": headline,
                     "source": str(item.get("source", "news")),
                     "priority": score_headline_priority(headline),

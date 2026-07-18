@@ -28,7 +28,7 @@ Crowd Signal focuses on that behavior layer:
 - Persona-level modeling (`retail_bull`, `retail_bear`, `whale`, `algo`).
 - Live WebSocket stream with ordered, turn-by-turn agent conversation.
 - Catalyst intelligence (LLM extraction + graph-based bias adjustments).
-- Market context enrichment (news, reddit, yfinance) when available.
+- Market context enrichment (news, yfinance) when available.
 - Memory-aware biasing from recent runs.
 - Accuracy scoring and daily market report generation.
 - US + India (`.NS`) support.
@@ -56,7 +56,7 @@ Example live event lines:
 |---|---|
 | `api/` | FastAPI app, REST routes, and WebSocket route |
 | `engine/sim/` | Core simulation, streaming runner, narrator, catalyst parser |
-| `engine/data/` | Market/news/reddit/yfinance connectors + context aggregation |
+| `engine/data/` | Market/news/yfinance connectors + context aggregation |
 | `engine/memory/` | Postgres-backed simulation memory and retrieval |
 | `engine/backtesting/` | Accuracy scoring + scheduler jobs |
 | `engine/scanner/` | Daily catalyst scanning and report population |
@@ -79,12 +79,9 @@ Recommended / feature-enabling:
 
 | Variable | Purpose |
 |---|---|
-| `REDDIT_CLIENT_ID` | Reddit ingestion |
-| `REDDIT_CLIENT_SECRET` | Reddit ingestion |
-| `REDDIT_USER_AGENT` | Reddit API compliance |
+| `GNEWS_API_KEY` | News enrichment |
 | `FINNHUB_API_KEY` | News enrichment |
 | `ALPHA_VANTAGE_API_KEY` | News enrichment |
-| `GNEWS_API_KEY` | News enrichment |
 | `GROQ_BASE_URL` | Optional override (defaults to Groq OpenAI-compatible URL) |
 
 ### Frontend (`web/.env.local`)
@@ -170,10 +167,6 @@ Expected behavior. The stream closes after `complete` is emitted.
 ### `status: generating` on `/api/v1/daily-report`
 
 Report has not been generated yet for the day. Trigger manually or wait for scheduler window.
-
-### `[REDDIT] credentials not configured - skipping`
-
-Reddit credentials are missing. Simulation still runs, but without reddit enrichment.
 
 ### YFinance `Too Many Requests`
 

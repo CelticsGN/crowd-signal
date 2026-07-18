@@ -8,10 +8,11 @@ from typing import Any
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 
-from api.models.schemas import PersonaSentiment, SimulateRequest, SimulationResult
+from api.models.schemas import PersonaSentiment, SimulateRequest, SimulationResult, VerdictResponse
 from engine.data.aggregator import MarketDataAggregator
-from engine.memory.db import get_recent_runs
+from engine.memory.db import get_recent_runs, update_verdict_on_latest_run
 from engine.sim.streaming_runner import run_simulation_streaming
+from engine.sim.verdict import blend_probabilities, compute_verdict
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -34,12 +35,11 @@ def _build_simulation_response(result: dict[str, Any], request: SimulateRequest)
         raw_probability_down = 0.0
 
     catalyst_bias = float((result.get("catalyst_analysis") or {}).get("final_bias", 0.0))
-    bias_probability_up = max(0.0, min(1.0, 0.5 + (0.37 * catalyst_bias)))
-    bias_probability_down = max(0.0, min(1.0, 0.5 - (0.37 * catalyst_bias)))
-
-    blend_weight = 0.9
-    probability_up = ((1.0 - blend_weight) * raw_probability_up) + (blend_weight * bias_probability_up)
-    probability_down = ((1.0 - blend_weight) * raw_probability_down) + (blend_weight * bias_probability_down)
+    probability_up, probability_down = blend_probabilities(
+        raw_probability_up,
+        raw_probability_down,
+        catalyst_bias,
+    )
 
     memory_context_rows = get_recent_runs(ticker=request.ticker, limit=4)
     memory_context_rows = memory_context_rows[1:4] if memory_context_rows else []
@@ -56,6 +56,29 @@ def _build_simulation_response(result: dict[str, Any], request: SimulateRequest)
     persona_counts = result.get("persona_counts", {})
     persona_mean_stance = result.get("persona_mean_stance", {})
     persona_mean_confidence = result.get("persona_mean_confidence", {})
+
+    # --- Verdict -----------------------------------------------------------
+    verdict_data = compute_verdict(
+        probability_up=probability_up,
+        probability_down=probability_down,
+        catalyst_bias=catalyst_bias,
+        mean_stance=float(result.get("mean_stance", 0.0)),
+        current_price=market_context.get("current_price") if market_context else None,
+        ticker=request.ticker,
+        persona_mean_stance=result.get("persona_mean_stance"),
+    )
+    verdict = VerdictResponse(**verdict_data)
+
+    # Persist the blended-probability verdict onto the DB row written by the runner.
+    update_verdict_on_latest_run(
+        request.ticker,
+        request.catalyst,
+        verdict_action=verdict.action,
+        verdict_confidence=verdict.confidence,
+        verdict_entry_price=verdict.entry_price,
+        verdict_target_price=verdict.target_price,
+        verdict_stop_price=verdict.stop_price,
+    )
 
     personas: list[PersonaSentiment] = []
     for persona in _PERSONAS:
@@ -83,10 +106,9 @@ def _build_simulation_response(result: dict[str, Any], request: SimulateRequest)
         catalyst_analysis=result.get("catalyst_analysis"),
         memory_context=memory_context,
         crowd_narrative=result.get("crowd_narrative", []),
+        verdict=verdict,
         current_price=market_context.get("current_price"),
         volume_vs_avg=market_context.get("volume_vs_avg"),
-        reddit_mentions=market_context.get("reddit_mentions"),
-        reddit_sentiment=market_context.get("reddit_sentiment"),
     )
 
 

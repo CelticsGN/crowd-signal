@@ -5,13 +5,13 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: REDDIT_CLIENT_ID
-        sync: false
-      - key: REDDIT_CLIENT_SECRET
-        sync: false
-      - key: REDDIT_USER_AGENT
-        sync: false
       - key: GROQ_API_KEY
+        sync: false
+      - key: FINNHUB_API_KEY
+        sync: false
+      - key: ALPHA_VANTAGE_API_KEY
+        sync: false
+      - key: GNEWS_API_KEY
         sync: false
       - key: ADMIN_KEY
         sync: false

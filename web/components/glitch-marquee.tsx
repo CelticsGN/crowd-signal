@@ -12,7 +12,6 @@ const PARTNERS = [
   "NEON POSTGRES",
   "GROQ",
   "YFINANCE",
-  "REDDIT API",
 ]
 
 function LogoBlock({ name, glitch }: { name: string; glitch: boolean }) {

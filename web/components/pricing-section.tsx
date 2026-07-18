@@ -278,7 +278,7 @@ export function PricingSection() {
             Principles, stack, and status
           </h2>
           <p className="text-xs lg:text-sm font-mono text-muted-foreground leading-relaxed max-w-xl">
-            Stack: Python, FastAPI, Next.js, Neon Postgres, Groq, yfinance, Reddit API. Status: live MVP with real-time stream mode and fallback-safe API flow.
+            Stack: Python, FastAPI, Next.js, Neon Postgres, Groq, yfinance. Status: live MVP with real-time stream mode and fallback-safe API flow.
           </p>
         </div>
         <StatusLine />

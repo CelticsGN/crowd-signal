@@ -209,6 +209,7 @@ def generate_crowd_narrative(
     catalyst: str,
     simulation_result: dict,
     catalyst_analysis: dict,
+    verdict: dict[str, Any] | None = None,
 ) -> list[dict]:
     """Generate sequential short reactions from five vocal crowd agents."""
     client = _get_client()
@@ -256,30 +257,80 @@ def generate_crowd_narrative(
 
         if persona == "narrator":
             system_prompt = base_system_prompt
-            user_prompt = (
-                _build_user_prompt(
-                    ticker,
-                    catalyst,
-                    agent_id,
-                    persona,
-                    market_context,
-                    currency,
-                    exchange_note,
-                    simulation_result,
-                    catalyst_analysis,
+            
+            if verdict:
+                action = verdict.get("action", "HOLD")
+                conf = verdict.get("confidence", 0)
+                reasoning = verdict.get("reasoning_summary", "")
+                
+                # Format price targets based on action
+                price_context = ""
+                if action in ["BUY", "SELL"] and verdict.get("target_price"):
+                    price_context = f"Target: {verdict.get('target_price')}, Stop: {verdict.get('stop_price')}"
+                elif action == "HOLD" and verdict.get("range_low"):
+                    price_context = f"Neutral Range: {verdict.get('range_low')} to {verdict.get('range_high')}"
+
+                verdict_prompt_ext = (
+                    f"\n\nVERDICT MODE ACTIVE:\n"
+                    f"The final trading verdict is: {action} (Confidence: {conf}%)\n"
+                    f"Price context: {price_context}\n"
+                    f"Reasoning summary: {reasoning}\n\n"
+                    "Your task is to write a punchy, decisive 1-2 sentence summary of this verdict.\n"
+                    "DO NOT use probabilistic or hedged language (e.g. 'there is a probabilistic tendency').\n"
                 )
-                + "\n"
-                + f"Previous agent reactions: {' | '.join(prior_reactions) if prior_reactions else 'none'}\n"
-                + (
-                    "Summarize FII vs DII dynamics if relevant. "
-                    "Mention if this is a broad Nifty-level event or stock-specific. "
-                    "Reference RBI or SEBI policy only if the catalyst is macro-related. "
-                    "Always end with: This is probabilistic simulation, not financial advice."
-                    if indian_market
-                    else "Summarize what the crowd simulation revealed in 2-3 sentences. Be objective. "
-                    "End with the disclaimer: This is probabilistic simulation, not financial advice."
+                if action in ["BUY", "SELL"]:
+                    verdict_prompt_ext += (
+                        "DO use bold, definitive language (e.g. 'Crowd is decisively bullish, whales leading the move').\n"
+                        "You MUST reference the verdict action (BUY/SELL), the confidence level, and the key price levels (target/stop) directly so your text perfectly matches the numbers.\n"
+                    )
+                else:
+                    verdict_prompt_ext += (
+                        "For HOLD calls, DO NOT mention the confidence percentage. Treat HOLD as a considered, honest non-call.\n"
+                        "Use language like: 'Crowd is split with no clear edge — sitting this one out. Watching $X–$Y until a real signal forms.'\n"
+                        "You MUST reference the HOLD action and the neutral range directly.\n"
+                    )
+                
+                verdict_prompt_ext += "End with the disclaimer: This is probabilistic simulation, not financial advice."
+                
+                user_prompt = (
+                    _build_user_prompt(
+                        ticker,
+                        catalyst,
+                        agent_id,
+                        persona,
+                        market_context,
+                        currency,
+                        exchange_note,
+                        simulation_result,
+                        catalyst_analysis,
+                    )
+                    + verdict_prompt_ext
                 )
-            )
+            else:
+                user_prompt = (
+                    _build_user_prompt(
+                        ticker,
+                        catalyst,
+                        agent_id,
+                        persona,
+                        market_context,
+                        currency,
+                        exchange_note,
+                        simulation_result,
+                        catalyst_analysis,
+                    )
+                    + "\n"
+                    + f"Previous agent reactions: {' | '.join(prior_reactions) if prior_reactions else 'none'}\n"
+                    + (
+                        "Summarize FII vs DII dynamics if relevant. "
+                        "Mention if this is a broad Nifty-level event or stock-specific. "
+                        "Reference RBI or SEBI policy only if the catalyst is macro-related. "
+                        "Always end with: This is probabilistic simulation, not financial advice."
+                        if indian_market
+                        else "Summarize what the crowd simulation revealed in 2-3 sentences. Be objective. "
+                        "End with the disclaimer: This is probabilistic simulation, not financial advice."
+                    )
+                )
         else:
             system_prompt = base_system_prompt
             user_prompt = _build_user_prompt(

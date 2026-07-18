@@ -11,6 +11,48 @@ from .base_connector import BaseConnector
 
 logger = logging.getLogger(__name__)
 
+
+def compute_atr_14(ticker: str) -> float | None:
+    """Compute the 14-period Average True Range from daily OHLC bars.
+
+    Uses a 30-day window so there are enough bars for the 14-period
+    calculation.  Returns ``None`` on any failure (missing data, API
+    error, insufficient history) so callers can fall back to flat-%
+    logic.
+    """
+    try:
+        hist = yf.Ticker(ticker).history(period="1mo", interval="1d")
+        if hist is None or len(hist) < 15:
+            logger.warning("[ATR] %s: insufficient daily bars (%s)", ticker, len(hist) if hist is not None else 0)
+            return None
+
+        highs = hist["High"].values
+        lows = hist["Low"].values
+        closes = hist["Close"].values
+
+        true_ranges: list[float] = []
+        for i in range(1, len(highs)):
+            tr = max(
+                float(highs[i]) - float(lows[i]),
+                abs(float(highs[i]) - float(closes[i - 1])),
+                abs(float(lows[i]) - float(closes[i - 1])),
+            )
+            true_ranges.append(tr)
+
+        if len(true_ranges) < 14:
+            logger.warning("[ATR] %s: not enough true-range values (%s)", ticker, len(true_ranges))
+            return None
+
+        atr = sum(true_ranges[-14:]) / 14.0
+        if atr <= 0:
+            return None
+        logger.info("[ATR] %s: ATR-14 = %.4f", ticker, atr)
+        return atr
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[ATR] %s: computation failed - %s", ticker, exc)
+        return None
+
+
 _RATE_LIMIT_RETRY_SECONDS = 5
 _RATE_LIMIT_COOLDOWN_SECONDS = 90
 _rate_limited_until_monotonic = 0.0
