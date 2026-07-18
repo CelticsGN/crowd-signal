@@ -11,17 +11,11 @@ from pydantic import BaseModel
 
 from engine.data.yfinance_connector import YFinanceConnector
 from engine.data.news_connector import NewsConnector
-from engine.data.reddit_connector import RedditConnector
 from engine.data.market_utils import is_indian_stock as _is_indian_stock
 from engine.data.market_utils import get_market_hours as _get_market_hours
 
 logger = logging.getLogger(__name__)
 
-# --- Sentiment word lists for Reddit posts ----------------------------
-_POSITIVE_WORDS = {"bull", "moon", "calls", "buy", "pump", "bullish", "long",
-                   "mooning", "rally", "surge", "squeeze", "yolo", "rip"}
-_NEGATIVE_WORDS = {"bear", "puts", "sell", "crash", "dump", "bearish", "short",
-                   "rug", "plunge", "correction", "tank", "baghold", "rekt"}
 
 
 def is_indian_stock(ticker: str) -> bool:
@@ -32,22 +26,6 @@ def get_market_hours(ticker: str) -> dict[str, str]:
     return _get_market_hours(ticker)
 
 
-def _reddit_sentiment_score(posts: list[dict]) -> float:
-    """Score Reddit posts on a simple positive-vs-negative word count.
-
-    Args:
-        posts: Raw dicts from :class:`RedditConnector`.
-
-    Returns:
-        Float in [-1.0, 1.0]: ``(pos - neg) / (pos + neg + 1)``.
-    """
-    pos = neg = 0
-    for post in posts:
-        text = (post.get("title", "") + " " + post.get("selftext", "")).lower()
-        words = set(re.findall(r"\b[a-z]+\b", text))
-        pos += len(words & _POSITIVE_WORDS)
-        neg += len(words & _NEGATIVE_WORDS)
-    return (pos - neg) / (pos + neg + 1)
 
 
 class MarketContext(BaseModel):
@@ -61,8 +39,6 @@ class MarketContext(BaseModel):
         price_change_pct:     Today's percentage price change.
         volume_vs_avg:        Today's volume divided by the 30-day average.
         recent_headlines:     Up to 5 recent news headlines mentioning the ticker.
-        reddit_mentions:      Count of posts mentioning the ticker in the last 2 h.
-        reddit_sentiment:     Bag-of-words sentiment score in [-1.0, 1.0].
         options_put_call_ratio: Total put open interest / total call open interest.
     """
 
@@ -70,8 +46,6 @@ class MarketContext(BaseModel):
     price_change_pct: Optional[float] = None
     volume_vs_avg: Optional[float] = None
     recent_headlines: list[str] = []
-    reddit_mentions: Optional[int] = None
-    reddit_sentiment: Optional[float] = None
     options_put_call_ratio: Optional[float] = None
 
 
@@ -86,7 +60,6 @@ class MarketDataAggregator:
         """Initialise the aggregator with default connector instances."""
         self._yf = YFinanceConnector(period="1d", interval="1m")
         self._news = NewsConnector()
-        self._reddit = RedditConnector(lookback_hours=2.0)
 
     # ------------------------------------------------------------------
     # Internal fetch helpers (each returns None on failure)
@@ -148,17 +121,6 @@ class MarketDataAggregator:
             logger.error("[NEWS] %s: FAILED - %s", ticker, str(exc))
             return []
 
-    async def _fetch_reddit(self, ticker: str) -> dict:
-        """Return reddit mention count + sentiment score or empty dict."""
-        try:
-            posts = await self._reddit.fetch(ticker)
-            return {
-                "reddit_mentions": len(posts),
-                "reddit_sentiment": round(_reddit_sentiment_score(posts), 4),
-            }
-        except Exception as exc:  # noqa: BLE001
-            logger.error("[REDDIT] %s: FAILED - %s", ticker, str(exc))
-            return {}
 
     # ------------------------------------------------------------------
     # Public interface
@@ -180,14 +142,11 @@ class MarketDataAggregator:
         """
         price_data = await self._fetch_price_data(ticker)
         headlines = await self._fetch_headlines(ticker)
-        reddit = await self._fetch_reddit(ticker)
 
         return MarketContext(
             current_price=price_data.get("current_price"),
             price_change_pct=price_data.get("price_change_pct"),
             volume_vs_avg=price_data.get("volume_vs_avg"),
             recent_headlines=headlines,
-            reddit_mentions=reddit.get("reddit_mentions"),
-            reddit_sentiment=reddit.get("reddit_sentiment"),
             options_put_call_ratio=price_data.get("options_put_call_ratio"),
         )

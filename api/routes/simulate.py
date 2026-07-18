@@ -6,10 +6,11 @@ import logging
 
 from fastapi import APIRouter
 
-from api.models.schemas import PersonaSentiment, SimulateRequest, SimulationResult
-from engine.memory.db import get_recent_runs
+from api.models.schemas import PersonaSentiment, SimulateRequest, SimulationResult, VerdictResponse
+from engine.memory.db import get_recent_runs, update_verdict_on_latest_run
 from engine.data.aggregator import MarketDataAggregator
 from engine.sim.runner import run_simulation
+from engine.sim.verdict import blend_probabilities, compute_verdict
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ _PERSONAS = ["retail_bull", "retail_bear", "whale", "algo"]
 async def simulate(request: SimulateRequest) -> SimulationResult:
     """Run a crowd simulation for the given ticker and catalyst.
 
-    Fetches live market context (price, volume, Reddit, options) before
+    Fetches live market context (price, volume, options) before
     running the simulation so the engine can adjust the catalyst bias
     based on real-world signals. If the context fetch fails for any
     reason the simulation still runs without market enrichment.
@@ -78,14 +79,34 @@ async def simulate(request: SimulateRequest) -> SimulationResult:
     catalyst_bias = float(
         (sim_result.get("catalyst_analysis") or {}).get("final_bias", 0.0)
     )
-    # Bias prior calibrated so weak catalysts stay near neutral probabilities,
-    # while strong catalysts still move probabilities meaningfully.
-    bias_probability_up = max(0.0, min(1.0, 0.5 + (0.37 * catalyst_bias)))
-    bias_probability_down = max(0.0, min(1.0, 0.5 - (0.37 * catalyst_bias)))
+    probability_up, probability_down = blend_probabilities(
+        raw_probability_up,
+        raw_probability_down,
+        catalyst_bias,
+    )
 
-    blend_weight = 0.9
-    probability_up = ((1.0 - blend_weight) * raw_probability_up) + (blend_weight * bias_probability_up)
-    probability_down = ((1.0 - blend_weight) * raw_probability_down) + (blend_weight * bias_probability_down)
+    # --- Verdict -----------------------------------------------------------
+    verdict_data = compute_verdict(
+        probability_up=probability_up,
+        probability_down=probability_down,
+        catalyst_bias=catalyst_bias,
+        mean_stance=float(sim_result.get("mean_stance", 0.0)),
+        current_price=market_context.current_price if market_context else None,
+        ticker=ticker,
+        persona_mean_stance=sim_result.get("persona_mean_stance"),
+    )
+    verdict = VerdictResponse(**verdict_data)
+
+    # Persist the blended-probability verdict onto the DB row written by the runner.
+    update_verdict_on_latest_run(
+        ticker,
+        request.catalyst,
+        verdict_action=verdict.action,
+        verdict_confidence=verdict.confidence,
+        verdict_entry_price=verdict.entry_price,
+        verdict_target_price=verdict.target_price,
+        verdict_stop_price=verdict.stop_price,
+    )
 
     persona_counts = sim_result.get("persona_counts", {})
     persona_mean_stance = sim_result.get("persona_mean_stance", {})
@@ -117,9 +138,8 @@ async def simulate(request: SimulateRequest) -> SimulationResult:
         catalyst_analysis=sim_result.get("catalyst_analysis"),
         memory_context=memory_context,
         crowd_narrative=sim_result.get("crowd_narrative", []),
+        verdict=verdict,
         # Market context fields (None when context fetch failed)
         current_price=market_context.current_price if market_context else None,
         volume_vs_avg=market_context.volume_vs_avg if market_context else None,
-        reddit_mentions=market_context.reddit_mentions if market_context else None,
-        reddit_sentiment=market_context.reddit_sentiment if market_context else None,
     )
