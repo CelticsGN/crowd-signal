@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Request
 
 from engine.scanner.catalyst_scanner import get_todays_report, run_daily_scan
 
@@ -29,10 +29,13 @@ async def daily_report() -> dict[str, Any]:
 
 
 @router.post("/daily-report/trigger")
-async def trigger_daily_report(x_admin_key: str | None = Header(default=None)) -> dict[str, Any]:
-    admin_key = os.getenv("ADMIN_KEY")
-    if not admin_key or (x_admin_key or "") != admin_key:
-        raise HTTPException(status_code=403, detail="Unauthorized")
+async def trigger_daily_report(
+    request: Request,
+    x_admin_key: str | None = Header(default=None),
+    upstash_signature: str | None = Header(default=None, alias="Upstash-Signature"),
+) -> dict[str, Any]:
+    from api.routes.admin import verify_admin_or_qstash
+    await verify_admin_or_qstash(request, x_admin_key, upstash_signature)
 
     summary = await run_daily_scan("ALL")
     return {

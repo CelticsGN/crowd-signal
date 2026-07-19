@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes.accuracy import router as accuracy_router
+from api.routes.admin import router as admin_router
 from api.routes.daily_report import router as daily_report_router
 from api.routes.simulate import router as simulate_router
 from api.routes.tickers import router as tickers_router
@@ -57,6 +58,7 @@ app.add_middleware(
 app.include_router(simulate_router, prefix="/api/v1")
 app.include_router(tickers_router, prefix="/api/v1")
 app.include_router(accuracy_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/api/v1")
 app.include_router(daily_report_router, prefix="/api/v1")
 app.include_router(ws_simulate_router)
 
