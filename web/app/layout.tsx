@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { JetBrains_Mono } from 'next/font/google'
 import { GeistPixelGrid } from 'geist/font/pixel'
 import { Analytics } from '@vercel/analytics/react'
+import Script from 'next/script'
 import { ThemeProvider } from '@/components/theme-provider'
 
 import './globals.css'
@@ -89,6 +90,18 @@ export default function RootLayout({
           {children}
         </ThemeProvider>
         <Analytics />
+        <Script
+          id="FlexiChat-config"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: 'window.FlexiChatSettings={projectid:"6acf3f34173844001354d88a"};',
+          }}
+        />
+        <Script
+          id="FlexiChat-jssdk"
+          src="https://flexichat.flexifunnels.com/widget/launch.js"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   )
