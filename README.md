@@ -110,6 +110,7 @@ Recommended / feature-enabling:
 | Route | Purpose |
 |---|---|
 | `/ws/simulate` | Stream simulation lifecycle and conversation turns live |
+| `/ws/chat` | Real-time multi-user chat channel for live collaboration |
 
 Common stream event types:
 
