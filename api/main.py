@@ -18,6 +18,7 @@ from api.routes.admin import router as admin_router
 from api.routes.daily_report import router as daily_report_router
 from api.routes.simulate import router as simulate_router
 from api.routes.tickers import router as tickers_router
+from api.routes.ws_chat import router as ws_chat_router
 from api.routes.ws_simulate import router as ws_simulate_router
 from engine.backtesting.scheduler import start_scorer_scheduler
 
@@ -60,6 +61,7 @@ app.include_router(tickers_router, prefix="/api/v1")
 app.include_router(accuracy_router, prefix="/api/v1")
 app.include_router(admin_router, prefix="/api/v1")
 app.include_router(daily_report_router, prefix="/api/v1")
+app.include_router(ws_chat_router)
 app.include_router(ws_simulate_router)
 
 _scorer_scheduler = None

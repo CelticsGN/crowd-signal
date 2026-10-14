@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { LiveSimulationFeed } from "@/components/live-simulation-feed"
+import { LiveChatPanel } from "@/components/live-chat-panel"
 import { SimulationForm } from "@/components/simulation-form"
 import { SimulationResults } from "@/components/simulation-results"
 import { VerdictCard } from "@/components/verdict-card"
@@ -130,6 +131,8 @@ function SimulatePageContent() {
               </details>
             </div>
           ) : null}
+
+          <LiveChatPanel />
 
           {finalResult ? <SimulationResults data={finalResult} analysisRunId={analysisRunId} /> : null}
         </div>
